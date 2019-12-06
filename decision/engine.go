@@ -114,6 +114,7 @@ type PeerTagger interface {
 }
 
 // Engine manages sending requested blocks to peers.
+// TODO: sending blocks and tickets - Jerry
 type Engine struct {
 	// peerRequestQueue is a priority queue of requests received from peers.
 	// Requests are popped from the queue, packaged up, and placed in the
@@ -130,6 +131,9 @@ type Engine struct {
 	// outbox contains outgoing messages to peers. This is owned by the
 	// taskWorker goroutine
 	outbox chan (<-chan *Envelope)
+
+	// TODO: ticketOutbox contains outgoing messages (tickets or ticket acks) to peers. - Jerry
+	ticketOutbox chan (<-chan *Envelope)
 
 	bsm *blockstoreManager
 
@@ -157,6 +161,7 @@ func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger)
 		workSignal:      make(chan struct{}, 1),
 		ticker:          time.NewTicker(time.Millisecond * 100),
 		taskWorkerCount: taskWorkerCount,
+		// TODO: add ticketOutbox - Jerry
 	}
 	e.tagQueued = fmt.Sprintf(tagFormat, "queued", uuid.New().String())
 	e.tagUseful = fmt.Sprintf(tagFormat, "useful", uuid.New().String())
@@ -345,6 +350,15 @@ func (e *Engine) taskWorkerExit() {
 	}
 }
 
+// TODO: add ticketWorker - sending tickets cannot use the same thread as normal messages - Jerry
+func (e *Engine) ticketWorker(ctx context.Context) {
+
+}
+// TODO: add ticketWorkerExit - Jerry
+func (e *Engine) ticketWorkerExit() {
+
+}
+
 // nextEnvelope runs in the taskWorker goroutine. Returns an error if the
 // context is cancelled before the next Envelope can be created.
 func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
@@ -459,6 +473,9 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			blockSize, ok := blockSizes[entry.Cid]
 			if ok {
 				// we have the block
+				// TODO: although we have the block, but the network resources are limited
+				// I may just send a ticket, which means I will send the block when the 
+				// resources are sufficient - Jerry
 				newWorkExists = true
 				if msgSize+blockSize > maxMessageSize {
 					e.peerRequestQueue.PushBlock(p, activeEntries...)
@@ -467,6 +484,10 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 				}
 				activeEntries = append(activeEntries, peertask.Task{Identifier: entry.Cid, Priority: entry.Priority})
 				msgSize += blockSize
+			} else {
+				// TODO: although we do not have the block, but I have the ticket.
+				// So I can send a ticket with higher level - Jerry
+
 			}
 		}
 	}
@@ -476,6 +497,15 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 	for _, block := range m.Blocks() {
 		log.Debugf("got block %s %d bytes", block, len(block.RawData()))
 		l.ReceivedBytes(len(block.RawData()))
+	}
+
+	if m.TicketList() != nil {
+		// TODO: handle tickets and ticket acks - Jerry
+		// More specifically, if the ticket is better, keep that ticket
+		// and abandon the previous ticket. Otherwise, reject the ticket.
+		// Both conditions should send a ack. 
+		// After receiving a ack, put the block into the send queue or 
+		// remove it from the send queue.
 	}
 }
 

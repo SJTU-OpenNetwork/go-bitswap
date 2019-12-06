@@ -26,6 +26,9 @@ type BitSwapMessage interface {
 	// Blocks returns a slice of unique blocks.
 	Blocks() []blocks.Block
 
+	// Ticks returns a slice of tickets.
+	Tickets() []tickets.Ticket //TODO: add definitions - Jerry
+
 	// AddEntry adds an entry to the Wantlist.
 	AddEntry(key cid.Cid, priority int)
 
@@ -78,6 +81,7 @@ type Entry struct {
 }
 
 func newMessageFromProto(pbm pb.Message) (BitSwapMessage, error) {
+	//TODO: add ticket support - Jerry
 	m := newMsg(pbm.Wantlist.Full)
 	for _, e := range pbm.Wantlist.Entries {
 		c, err := cid.Cast([]byte(e.Block))
@@ -122,7 +126,7 @@ func (m *impl) Full() bool {
 }
 
 func (m *impl) Empty() bool {
-	return len(m.blocks) == 0 && len(m.wantlist) == 0
+	return len(m.blocks) == 0 && len(m.wantlist) == 0 && len() == 0
 }
 
 func (m *impl) Wantlist() []Entry {
@@ -140,6 +144,8 @@ func (m *impl) Blocks() []blocks.Block {
 	}
 	return bs
 }
+
+//TODO add function Tickets() - Jerry
 
 func (m *impl) Cancel(k cid.Cid) {
 	delete(m.wantlist, k)
@@ -169,6 +175,8 @@ func (m *impl) addEntry(c cid.Cid, priority int, cancel bool) {
 func (m *impl) AddBlock(b blocks.Block) {
 	m.blocks[b.Cid()] = b
 }
+
+//TODO add function AddTicket() - Jerry
 
 // FromNet generates a new BitswapMessage from incoming data on an io.Reader.
 func FromNet(r io.Reader) (BitSwapMessage, error) {
@@ -236,6 +244,8 @@ func (m *impl) ToProtoV1() *pb.Message {
 	return pbm
 }
 
+//TODO add or modify function ToProtoV2()/ToProtoV1() - Jerry
+
 func (m *impl) ToNetV0(w io.Writer) error {
 	return write(w, m.ToProtoV0())
 }
@@ -243,6 +253,8 @@ func (m *impl) ToNetV0(w io.Writer) error {
 func (m *impl) ToNetV1(w io.Writer) error {
 	return write(w, m.ToProtoV1())
 }
+
+//TODO add or modify function ToNetV2()/ToNetV1() - Jerry
 
 func write(w io.Writer, m *pb.Message) error {
 	size := m.Size()

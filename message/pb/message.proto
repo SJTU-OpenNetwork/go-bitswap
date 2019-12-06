@@ -23,7 +23,17 @@ message Message {
     bytes data = 2;
   }
 
+  message Ticketlist {
+    message Entry {
+      bytes block = 1;
+      int32 level = 2;
+      bool cancel = 3;
+    }
+    repeated Entry entries = 1 [(gogoproto.nullable) = false];
+  }
+
   Wantlist wantlist = 1 [(gogoproto.nullable) = false];
   repeated bytes blocks = 2;		// used to send Blocks in bitswap 1.0.0
   repeated Block payload = 3 [(gogoproto.nullable) = false];		// used to send Blocks in bitswap 1.1.0
+  Ticketlist ticketlist = 4;
 }

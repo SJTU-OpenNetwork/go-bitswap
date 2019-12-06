@@ -36,6 +36,8 @@ func (bs *Bitswap) startWorkers(ctx context.Context, px process.Process) {
 		// file transfers
 		px.Go(bs.provideWorker)
 	}
+
+	// TODO: start ticketWorker - Jerry
 }
 
 func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
@@ -79,6 +81,19 @@ func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
 			return
 		}
 	}
+}
+
+
+// TODO: ticketWorker is used to send ticket or ticket ack - Jerry
+func (bs *Bitswap) ticketWorker(ctx context.Context, id int) {
+}
+
+// TODO: add sendTicket - Jerry
+func (bs *Bitswap) sendTicket(ctx context.Context, env *engine.Envelope) {
+}
+
+// TODO: add sendTicketAck - Jerry
+func (bs *Bitswap) sendTicketAck(ctx context.Context, env *engine.Envelope) {
 }
 
 func (bs *Bitswap) sendBlocks(ctx context.Context, env *engine.Envelope) {
