@@ -86,6 +86,7 @@ func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
 
 // TODO: ticketWorker is used to send ticket or ticket ack - Jerry
 func (bs *Bitswap) ticketWorker(ctx context.Context, id int) {
+	
 }
 
 // TODO: add sendTicket - Jerry

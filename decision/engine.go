@@ -157,7 +157,7 @@ func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger)
 		ledgerMap:       make(map[peer.ID]*ledger),
 		bsm:             newBlockstoreManager(ctx, bs, blockstoreWorkerCount),
 		peerTagger:      peerTagger,
-		outbox:          make(chan (<-chan *Envelope), outboxChanBuffer),
+		outbox:          make(chan (<-chan *Envelope), outboxChanBuffer),	//TODO: Why not make outbox buffered directly ??? - Riften
 		workSignal:      make(chan struct{}, 1),
 		ticker:          time.NewTicker(time.Millisecond * 100),
 		taskWorkerCount: taskWorkerCount,
@@ -173,6 +173,7 @@ func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger)
 }
 
 // Start up workers to handle requests from other nodes for the data on this node
+// TODO: Start ticketWorkers - Riften
 func (e *Engine) StartWorkers(ctx context.Context, px process.Process) {
 	// Start up blockstore manager
 	e.bsm.start(px)
@@ -416,6 +417,10 @@ func (e *Engine) Outbox() <-chan (<-chan *Envelope) {
 	return e.outbox
 }
 
+func (e *Engine) TicketOutbox() <-chan (<-chan *Envelope) {
+	return e.ticketOutbox
+}
+
 // Peers returns a slice of Peers with whom the local node has active sessions.
 func (e *Engine) Peers() []peer.ID {
 	e.lock.Lock()
@@ -485,7 +490,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 				activeEntries = append(activeEntries, peertask.Task{Identifier: entry.Cid, Priority: entry.Priority})
 				msgSize += blockSize
 			} else {
-				// TODO: although we do not have the block, but I have the ticket.
+				// TODO: although we do not have the block, but I have the ticket. - Jerry
 				// So I can send a ticket with higher level - Jerry
 
 			}

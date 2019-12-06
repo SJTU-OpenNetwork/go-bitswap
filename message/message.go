@@ -3,6 +3,7 @@ package message
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/ipfs/go-bitswap/tickets"
 	"io"
 
 	pb "github.com/ipfs/go-bitswap/message/pb"
@@ -40,6 +41,9 @@ type BitSwapMessage interface {
 	Full() bool
 
 	AddBlock(blocks.Block)
+
+	AddTicket(tickets.Ticket)
+
 	Exportable
 
 	Loggable() map[string]interface{}
@@ -58,6 +62,7 @@ type impl struct {
 	full     bool
 	wantlist map[cid.Cid]*Entry
 	blocks   map[cid.Cid]blocks.Block
+	tickets  map[cid.Cid]tickets.Ticket	//TODO: Is it proper to use content id to index tickets? - Riften
 }
 
 // New returns a new, empty bitswap message
@@ -146,6 +151,13 @@ func (m *impl) Blocks() []blocks.Block {
 }
 
 //TODO add function Tickets() - Jerry
+func (m *impl) Tickets() []tickets.Ticket{
+	ts := make([]tickets.Ticket, 0, len(m.tickets))
+	for _, ticket := range m.tickets {
+		ts = append(ts, ticket)
+	}
+	return ts
+}
 
 func (m *impl) Cancel(k cid.Cid) {
 	delete(m.wantlist, k)
@@ -177,6 +189,9 @@ func (m *impl) AddBlock(b blocks.Block) {
 }
 
 //TODO add function AddTicket() - Jerry
+func (m *impl) AddTicket(t tickets.Ticket){
+	m.tickets[t.Cid()] = t;
+}
 
 // FromNet generates a new BitswapMessage from incoming data on an io.Reader.
 func FromNet(r io.Reader) (BitSwapMessage, error) {
