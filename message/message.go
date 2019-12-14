@@ -3,11 +3,11 @@ package message
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/ipfs/go-bitswap/tickets"
+	"github.com/SJTU-OpenNetwork/go-bitswap/tickets"
 	"io"
 
-	pb "github.com/ipfs/go-bitswap/message/pb"
-	wantlist "github.com/ipfs/go-bitswap/wantlist"
+	pb "github.com/SJTU-OpenNetwork/go-bitswap/message/pb"
+	wantlist "github.com/SJTU-OpenNetwork/go-bitswap/wantlist"
 	blocks "github.com/ipfs/go-block-format"
 
 	cid "github.com/ipfs/go-cid"
@@ -15,7 +15,11 @@ import (
 	msgio "github.com/libp2p/go-msgio"
 
 	"github.com/libp2p/go-libp2p-core/network"
+
+	logging "github.com/ipfs/go-log"
 )
+
+var log = logging.Logger("Bitswap.message")
 
 // BitSwapMessage is the basic interface for interacting building, encoding,
 // and decoding messages sent on the BitSwap protocol.
@@ -29,6 +33,8 @@ type BitSwapMessage interface {
 
 	// Ticks returns a slice of tickets.
 	Tickets() []tickets.Ticket //TODO: add definitions - Jerry
+
+	TicketAcks() []tickets.TicketAck
 
 	// AddEntry adds an entry to the Wantlist.
 	AddEntry(key cid.Cid, priority int)
@@ -44,9 +50,12 @@ type BitSwapMessage interface {
 
 	AddTicket(tickets.Ticket)
 
+	AddTicketAck(tickets.TicketAck)
+
 	Exportable
 
 	Loggable() map[string]interface{}
+	//LogCat()
 }
 
 // Exportable is an interface for structures than can be
@@ -62,7 +71,8 @@ type impl struct {
 	full     bool
 	wantlist map[cid.Cid]*Entry
 	blocks   map[cid.Cid]blocks.Block
-	tickets  map[cid.Cid]tickets.Ticket	//TODO: Is it proper to use content id to index tickets? - Riften
+	tickets  map[cid.Cid]tickets.Ticket
+	ticketAcks map[cid.Cid]tickets.TicketAck
 }
 
 // New returns a new, empty bitswap message
@@ -74,6 +84,8 @@ func newMsg(full bool) *impl {
 	return &impl{
 		blocks:   make(map[cid.Cid]blocks.Block),
 		wantlist: make(map[cid.Cid]*Entry),
+		tickets: make(map[cid.Cid]tickets.Ticket),
+		ticketAcks: make(map[cid.Cid]tickets.TicketAck),
 		full:     full,
 	}
 }
@@ -123,6 +135,23 @@ func newMessageFromProto(pbm pb.Message) (BitSwapMessage, error) {
 		m.AddBlock(blk)
 	}
 
+	// Generate Tickets and Ticket Acks
+	for _, t := range pbm.GetTicketlist() {
+		tk, err := tickets.NewBasicTicket(t)
+		if(err != nil){
+			return nil, err
+		}
+		m.AddTicket(tk)
+	}
+
+	for _, a := range pbm.GetTicketAcklist() {
+		ack, err := tickets.NewBasicTicketAck(a)
+		if(err != nil){
+			return nil, err
+		}
+		m.AddTicketAck(ack)
+	}
+
 	return m, nil
 }
 
@@ -131,7 +160,7 @@ func (m *impl) Full() bool {
 }
 
 func (m *impl) Empty() bool {
-	return len(m.blocks) == 0 && len(m.wantlist) == 0 && len() == 0
+	return len(m.blocks) == 0 && len(m.wantlist) == 0 && len(m.tickets) == 0  && len(m.ticketAcks) == 0
 }
 
 func (m *impl) Wantlist() []Entry {
@@ -155,6 +184,14 @@ func (m *impl) Tickets() []tickets.Ticket{
 	ts := make([]tickets.Ticket, 0, len(m.tickets))
 	for _, ticket := range m.tickets {
 		ts = append(ts, ticket)
+	}
+	return ts
+}
+
+func (m *impl) TicketAcks() []tickets.TicketAck{
+	ts := make([]tickets.TicketAck, 0, len(m.ticketAcks))
+	for _, ticketack := range m.ticketAcks {
+		ts = append(ts, ticketack)
 	}
 	return ts
 }
@@ -191,6 +228,10 @@ func (m *impl) AddBlock(b blocks.Block) {
 //TODO add function AddTicket() - Jerry
 func (m *impl) AddTicket(t tickets.Ticket){
 	m.tickets[t.Cid()] = t;
+}
+
+func (m *impl) AddTicketAck(ack tickets.TicketAck){
+	m.ticketAcks[ack.Cid()] = ack
 }
 
 // FromNet generates a new BitswapMessage from incoming data on an io.Reader.
@@ -233,6 +274,18 @@ func (m *impl) ToProtoV0() *pb.Message {
 	for _, b := range blocks {
 		pbm.Blocks = append(pbm.Blocks, b.RawData())
 	}
+
+	// Convert ticket and acks
+	pbm.Ticketlist = make([]*pb.Ticket, 0, len(m.tickets))
+	for _, t := range m.tickets {
+		pbm.Ticketlist = append(pbm.Ticketlist, t.ToProto())
+	}
+
+	pbm.TicketAcklist = make([]*pb.TicketAck, 0, len(m.ticketAcks))
+	for _, a := range m.ticketAcks{
+		pbm.TicketAcklist = append(pbm.TicketAcklist, a.ToProto())
+	}
+
 	return pbm
 }
 
@@ -255,6 +308,17 @@ func (m *impl) ToProtoV1() *pb.Message {
 			Data:   b.RawData(),
 			Prefix: b.Cid().Prefix().Bytes(),
 		})
+	}
+
+	// Convert ticket and acks
+	pbm.Ticketlist = make([]*pb.Ticket, 0, len(m.tickets))
+	for _, t := range m.tickets {
+		pbm.Ticketlist = append(pbm.Ticketlist, t.ToProto())
+	}
+
+	pbm.TicketAcklist = make([]*pb.TicketAck, 0, len(m.ticketAcks))
+	for _, a := range m.ticketAcks{
+		pbm.TicketAcklist = append(pbm.TicketAcklist, a.ToProto())
 	}
 	return pbm
 }
@@ -294,8 +358,24 @@ func (m *impl) Loggable() map[string]interface{} {
 	for _, v := range m.blocks {
 		blocks = append(blocks, v.Cid().String())
 	}
+
+	tickets := make([]string, 0, len(m.tickets))
+	for _, t := range m.tickets {
+		tickets = append(tickets, t.Cid().String())
+	}
+
+	ticketacks := make([]map[string]interface{}, 0, len(m.ticketAcks))
+	for _, a := range m.ticketAcks {
+		ticketacks = append(ticketacks, map[string]interface{}{
+			"cid": a.Cid().String(),
+			"type": pb.TicketAck_Type_name[a.ACK()],
+		})
+	}
+
 	return map[string]interface{}{
 		"blocks": blocks,
 		"wants":  m.Wantlist(),
+		"tickets": tickets,
+		"ticket acks": ticketacks,
 	}
 }

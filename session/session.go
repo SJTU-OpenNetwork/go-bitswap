@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	bsgetter "github.com/ipfs/go-bitswap/getter"
-	notifications "github.com/ipfs/go-bitswap/notifications"
-	bssd "github.com/ipfs/go-bitswap/sessiondata"
+	bsgetter "github.com/SJTU-OpenNetwork/go-bitswap/getter"
+	notifications "github.com/SJTU-OpenNetwork/go-bitswap/notifications"
+	bssd "github.com/SJTU-OpenNetwork/go-bitswap/sessiondata"
 	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	delay "github.com/ipfs/go-ipfs-delay"

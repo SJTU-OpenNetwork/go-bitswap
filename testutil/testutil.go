@@ -3,9 +3,9 @@ package testutil
 import (
 	"math/rand"
 
-	bsmsg "github.com/ipfs/go-bitswap/message"
-	bssd "github.com/ipfs/go-bitswap/sessiondata"
-	"github.com/ipfs/go-bitswap/wantlist"
+	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
+	bssd "github.com/SJTU-OpenNetwork/go-bitswap/sessiondata"
+	"github.com/SJTU-OpenNetwork/go-bitswap/wantlist"
 	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	blocksutil "github.com/ipfs/go-ipfs-blocksutil"

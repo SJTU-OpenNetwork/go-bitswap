@@ -21,19 +21,319 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+
+type Ticket_State int32
+
+const (
+	Ticket_New     Ticket_State = 0
+	Ticket_ACK     Ticket_State = 1
+	Ticket_CANCEL  Ticket_State = 2
+	Ticket_TIMEOUT Ticket_State = 3
+)
+
+var Ticket_State_name = map[int32]string{
+	0: "New",
+	1: "ACK",
+	2: "CANCEL",
+	3: "TIMEOUT",
+}
+
+var Ticket_State_value = map[string]int32{
+	"New":     0,
+	"ACK":     1,
+	"CANCEL":  2,
+	"TIMEOUT": 3,
+}
+
+func (x Ticket_State) String() string {
+	return proto.EnumName(Ticket_State_name, int32(x))
+}
+
+func (Ticket_State) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_33c57e4bae7b9afd, []int{0, 0}
+}
+
+type TicketAck_Type int32
+
+const (
+	TicketAck_ACCEPT TicketAck_Type = 0
+	TicketAck_CANCEL TicketAck_Type = 1
+)
+
+var TicketAck_Type_name = map[int32]string{
+	0: "ACCEPT",
+	1: "CANCEL",
+}
+
+var TicketAck_Type_value = map[string]int32{
+	"ACCEPT": 0,
+	"CANCEL": 1,
+}
+
+func (x TicketAck_Type) String() string {
+	return proto.EnumName(TicketAck_Type_name, int32(x))
+}
+
+func (TicketAck_Type) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_33c57e4bae7b9afd, []int{2, 0}
+}
+
+type Ticket struct {
+	Publisher string       `protobuf:"bytes,1,opt,name=publisher,proto3" json:"publisher,omitempty"`
+	SendTo    string       `protobuf:"bytes,2,opt,name=sendTo,proto3" json:"sendTo,omitempty"`
+	Cid       string       `protobuf:"bytes,3,opt,name=cid,proto3" json:"cid,omitempty"`
+	ByteSize  int64        `protobuf:"varint,4,opt,name=byteSize,proto3" json:"byteSize,omitempty"`
+	TimeStamp int64        `protobuf:"varint,5,opt,name=timeStamp,proto3" json:"timeStamp,omitempty"`
+	State     Ticket_State `protobuf:"varint,6,opt,name=state,proto3,enum=bitswap.message.pb.Ticket_State" json:"state,omitempty"`
+}
+
+func (m *Ticket) Reset()         { *m = Ticket{} }
+func (m *Ticket) String() string { return proto.CompactTextString(m) }
+func (*Ticket) ProtoMessage()    {}
+func (*Ticket) Descriptor() ([]byte, []int) {
+	return fileDescriptor_33c57e4bae7b9afd, []int{0}
+}
+func (m *Ticket) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Ticket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Ticket.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Ticket) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Ticket.Merge(m, src)
+}
+func (m *Ticket) XXX_Size() int {
+	return m.Size()
+}
+func (m *Ticket) XXX_DiscardUnknown() {
+	xxx_messageInfo_Ticket.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Ticket proto.InternalMessageInfo
+
+func (m *Ticket) GetPublisher() string {
+	if m != nil {
+		return m.Publisher
+	}
+	return ""
+}
+
+func (m *Ticket) GetSendTo() string {
+	if m != nil {
+		return m.SendTo
+	}
+	return ""
+}
+
+func (m *Ticket) GetCid() string {
+	if m != nil {
+		return m.Cid
+	}
+	return ""
+}
+
+func (m *Ticket) GetByteSize() int64 {
+	if m != nil {
+		return m.ByteSize
+	}
+	return 0
+}
+
+func (m *Ticket) GetTimeStamp() int64 {
+	if m != nil {
+		return m.TimeStamp
+	}
+	return 0
+}
+
+func (m *Ticket) GetState() Ticket_State {
+	if m != nil {
+		return m.State
+	}
+	return Ticket_New
+}
+
+type Ticketlist struct {
+	Items []*Ticket `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+}
+
+func (m *Ticketlist) Reset()         { *m = Ticketlist{} }
+func (m *Ticketlist) String() string { return proto.CompactTextString(m) }
+func (*Ticketlist) ProtoMessage()    {}
+func (*Ticketlist) Descriptor() ([]byte, []int) {
+	return fileDescriptor_33c57e4bae7b9afd, []int{1}
+}
+func (m *Ticketlist) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Ticketlist) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Ticketlist.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Ticketlist) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Ticketlist.Merge(m, src)
+}
+func (m *Ticketlist) XXX_Size() int {
+	return m.Size()
+}
+func (m *Ticketlist) XXX_DiscardUnknown() {
+	xxx_messageInfo_Ticketlist.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Ticketlist proto.InternalMessageInfo
+
+func (m *Ticketlist) GetItems() []*Ticket {
+	if m != nil {
+		return m.Items
+	}
+	return nil
+}
+
+type TicketAck struct {
+	Publisher string         `protobuf:"bytes,1,opt,name=publisher,proto3" json:"publisher,omitempty"`
+	Receiver  string         `protobuf:"bytes,2,opt,name=receiver,proto3" json:"receiver,omitempty"`
+	Cid       string         `protobuf:"bytes,3,opt,name=cid,proto3" json:"cid,omitempty"`
+	Type      TicketAck_Type `protobuf:"varint,4,opt,name=type,proto3,enum=bitswap.message.pb.TicketAck_Type" json:"type,omitempty"`
+}
+
+func (m *TicketAck) Reset()         { *m = TicketAck{} }
+func (m *TicketAck) String() string { return proto.CompactTextString(m) }
+func (*TicketAck) ProtoMessage()    {}
+func (*TicketAck) Descriptor() ([]byte, []int) {
+	return fileDescriptor_33c57e4bae7b9afd, []int{2}
+}
+func (m *TicketAck) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TicketAck) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TicketAck.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TicketAck) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TicketAck.Merge(m, src)
+}
+func (m *TicketAck) XXX_Size() int {
+	return m.Size()
+}
+func (m *TicketAck) XXX_DiscardUnknown() {
+	xxx_messageInfo_TicketAck.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TicketAck proto.InternalMessageInfo
+
+func (m *TicketAck) GetPublisher() string {
+	if m != nil {
+		return m.Publisher
+	}
+	return ""
+}
+
+func (m *TicketAck) GetReceiver() string {
+	if m != nil {
+		return m.Receiver
+	}
+	return ""
+}
+
+func (m *TicketAck) GetCid() string {
+	if m != nil {
+		return m.Cid
+	}
+	return ""
+}
+
+func (m *TicketAck) GetType() TicketAck_Type {
+	if m != nil {
+		return m.Type
+	}
+	return TicketAck_ACCEPT
+}
+
+type TicketAcklist struct {
+	Items []*TicketAck `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+}
+
+func (m *TicketAcklist) Reset()         { *m = TicketAcklist{} }
+func (m *TicketAcklist) String() string { return proto.CompactTextString(m) }
+func (*TicketAcklist) ProtoMessage()    {}
+func (*TicketAcklist) Descriptor() ([]byte, []int) {
+	return fileDescriptor_33c57e4bae7b9afd, []int{3}
+}
+func (m *TicketAcklist) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TicketAcklist) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TicketAcklist.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TicketAcklist) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TicketAcklist.Merge(m, src)
+}
+func (m *TicketAcklist) XXX_Size() int {
+	return m.Size()
+}
+func (m *TicketAcklist) XXX_DiscardUnknown() {
+	xxx_messageInfo_TicketAcklist.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TicketAcklist proto.InternalMessageInfo
+
+func (m *TicketAcklist) GetItems() []*TicketAck {
+	if m != nil {
+		return m.Items
+	}
+	return nil
+}
 
 type Message struct {
 	Wantlist Message_Wantlist `protobuf:"bytes,1,opt,name=wantlist,proto3" json:"wantlist"`
 	Blocks   [][]byte         `protobuf:"bytes,2,rep,name=blocks,proto3" json:"blocks,omitempty"`
 	Payload  []Message_Block  `protobuf:"bytes,3,rep,name=payload,proto3" json:"payload"`
+	//Ticketlist ticketlist = 4;
+	//TicketAcklist ticketAcklist = 5;
+	Ticketlist    []*Ticket    `protobuf:"bytes,4,rep,name=ticketlist,proto3" json:"ticketlist,omitempty"`
+	TicketAcklist []*TicketAck `protobuf:"bytes,5,rep,name=ticketAcklist,proto3" json:"ticketAcklist,omitempty"`
 }
 
 func (m *Message) Reset()         { *m = Message{} }
 func (m *Message) String() string { return proto.CompactTextString(m) }
 func (*Message) ProtoMessage()    {}
 func (*Message) Descriptor() ([]byte, []int) {
-	return fileDescriptor_33c57e4bae7b9afd, []int{0}
+	return fileDescriptor_33c57e4bae7b9afd, []int{4}
 }
 func (m *Message) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -83,6 +383,20 @@ func (m *Message) GetPayload() []Message_Block {
 	return nil
 }
 
+func (m *Message) GetTicketlist() []*Ticket {
+	if m != nil {
+		return m.Ticketlist
+	}
+	return nil
+}
+
+func (m *Message) GetTicketAcklist() []*TicketAck {
+	if m != nil {
+		return m.TicketAcklist
+	}
+	return nil
+}
+
 type Message_Wantlist struct {
 	Entries []Message_Wantlist_Entry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries"`
 	Full    bool                     `protobuf:"varint,2,opt,name=full,proto3" json:"full,omitempty"`
@@ -92,7 +406,7 @@ func (m *Message_Wantlist) Reset()         { *m = Message_Wantlist{} }
 func (m *Message_Wantlist) String() string { return proto.CompactTextString(m) }
 func (*Message_Wantlist) ProtoMessage()    {}
 func (*Message_Wantlist) Descriptor() ([]byte, []int) {
-	return fileDescriptor_33c57e4bae7b9afd, []int{0, 0}
+	return fileDescriptor_33c57e4bae7b9afd, []int{4, 0}
 }
 func (m *Message_Wantlist) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -145,7 +459,7 @@ func (m *Message_Wantlist_Entry) Reset()         { *m = Message_Wantlist_Entry{}
 func (m *Message_Wantlist_Entry) String() string { return proto.CompactTextString(m) }
 func (*Message_Wantlist_Entry) ProtoMessage()    {}
 func (*Message_Wantlist_Entry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_33c57e4bae7b9afd, []int{0, 0, 0}
+	return fileDescriptor_33c57e4bae7b9afd, []int{4, 0, 0}
 }
 func (m *Message_Wantlist_Entry) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -204,7 +518,7 @@ func (m *Message_Block) Reset()         { *m = Message_Block{} }
 func (m *Message_Block) String() string { return proto.CompactTextString(m) }
 func (*Message_Block) ProtoMessage()    {}
 func (*Message_Block) Descriptor() ([]byte, []int) {
-	return fileDescriptor_33c57e4bae7b9afd, []int{0, 1}
+	return fileDescriptor_33c57e4bae7b9afd, []int{4, 1}
 }
 func (m *Message_Block) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -248,6 +562,12 @@ func (m *Message_Block) GetData() []byte {
 }
 
 func init() {
+	proto.RegisterEnum("bitswap.message.pb.Ticket_State", Ticket_State_name, Ticket_State_value)
+	proto.RegisterEnum("bitswap.message.pb.TicketAck_Type", TicketAck_Type_name, TicketAck_Type_value)
+	proto.RegisterType((*Ticket)(nil), "bitswap.message.pb.Ticket")
+	proto.RegisterType((*Ticketlist)(nil), "bitswap.message.pb.Ticketlist")
+	proto.RegisterType((*TicketAck)(nil), "bitswap.message.pb.TicketAck")
+	proto.RegisterType((*TicketAcklist)(nil), "bitswap.message.pb.TicketAcklist")
 	proto.RegisterType((*Message)(nil), "bitswap.message.pb.Message")
 	proto.RegisterType((*Message_Wantlist)(nil), "bitswap.message.pb.Message.Wantlist")
 	proto.RegisterType((*Message_Wantlist_Entry)(nil), "bitswap.message.pb.Message.Wantlist.Entry")
@@ -257,28 +577,227 @@ func init() {
 func init() { proto.RegisterFile("message.proto", fileDescriptor_33c57e4bae7b9afd) }
 
 var fileDescriptor_33c57e4bae7b9afd = []byte{
-	// 335 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x91, 0xcf, 0x4a, 0xf3, 0x40,
-	0x14, 0xc5, 0x33, 0x4d, 0xd3, 0x86, 0xdb, 0x7e, 0x9b, 0xe1, 0x43, 0x86, 0x2c, 0x62, 0x14, 0x17,
-	0x41, 0x70, 0x0a, 0xed, 0x13, 0x58, 0xd0, 0x85, 0xe0, 0xc2, 0x6c, 0x5c, 0x4f, 0xd2, 0x34, 0x0e,
-	0xa6, 0x99, 0x90, 0x4c, 0xa9, 0x7d, 0x0b, 0x5f, 0xc1, 0x07, 0x71, 0xdf, 0x65, 0x97, 0xae, 0x44,
-	0xda, 0x17, 0x91, 0xdc, 0x4e, 0xb3, 0x11, 0xc4, 0xdd, 0x3d, 0xc3, 0x39, 0xbf, 0xfb, 0x67, 0xe0,
-	0xdf, 0x22, 0xad, 0x6b, 0x91, 0xa5, 0xbc, 0xac, 0x94, 0x56, 0x94, 0xc6, 0x52, 0xd7, 0x2b, 0x51,
-	0xf2, 0xf6, 0x39, 0xf6, 0xae, 0x32, 0xa9, 0x9f, 0x96, 0x31, 0x4f, 0xd4, 0x62, 0x94, 0xa9, 0x4c,
-	0x8d, 0xd0, 0x1a, 0x2f, 0xe7, 0xa8, 0x50, 0x60, 0x75, 0x40, 0x9c, 0xbf, 0xd9, 0xd0, 0xbf, 0x3f,
-	0xa4, 0xe9, 0x2d, 0xb8, 0x2b, 0x51, 0xe8, 0x5c, 0xd6, 0x9a, 0x91, 0x80, 0x84, 0x83, 0xf1, 0x05,
-	0xff, 0xd9, 0x81, 0x1b, 0x3b, 0x7f, 0x34, 0xde, 0x69, 0x77, 0xf3, 0x79, 0x6a, 0x45, 0x6d, 0x96,
-	0x9e, 0x40, 0x2f, 0xce, 0x55, 0xf2, 0x5c, 0xb3, 0x4e, 0x60, 0x87, 0xc3, 0xc8, 0x28, 0x7a, 0x0d,
-	0xfd, 0x52, 0xac, 0x73, 0x25, 0x66, 0xcc, 0x0e, 0xec, 0x70, 0x30, 0x3e, 0xfb, 0x0d, 0x3f, 0x6d,
-	0x42, 0x86, 0x7d, 0xcc, 0x79, 0xef, 0x04, 0xdc, 0x63, 0x5f, 0x7a, 0x07, 0xfd, 0xb4, 0xd0, 0x95,
-	0x4c, 0x6b, 0x46, 0x90, 0x77, 0xf9, 0x97, 0x71, 0xf9, 0x4d, 0xa1, 0xab, 0xf5, 0x11, 0x6c, 0x00,
-	0x94, 0x42, 0x77, 0xbe, 0xcc, 0x73, 0xd6, 0x09, 0x48, 0xe8, 0x46, 0x58, 0x7b, 0x0f, 0xe0, 0xa0,
-	0x97, 0xfe, 0x07, 0x07, 0x57, 0xc0, 0xab, 0x0c, 0xa3, 0x83, 0xa0, 0x1e, 0xb8, 0x65, 0x25, 0x55,
-	0x25, 0xf5, 0x1a, 0x63, 0x4e, 0xd4, 0xea, 0xe6, 0x04, 0x89, 0x28, 0x92, 0x34, 0x67, 0x36, 0x02,
-	0x8d, 0xf2, 0x26, 0xe0, 0xe0, 0x5e, 0x8d, 0xa1, 0xac, 0xd2, 0xb9, 0x7c, 0x31, 0x4c, 0xa3, 0x9a,
-	0x39, 0x66, 0x42, 0x0b, 0x04, 0x0e, 0x23, 0xac, 0xa7, 0x6c, 0xb3, 0xf3, 0xc9, 0x76, 0xe7, 0x93,
-	0xaf, 0x9d, 0x4f, 0x5e, 0xf7, 0xbe, 0xb5, 0xdd, 0xfb, 0xd6, 0xc7, 0xde, 0xb7, 0xe2, 0x1e, 0x7e,
-	0xe2, 0xe4, 0x3b, 0x00, 0x00, 0xff, 0xff, 0x5d, 0x1d, 0x6e, 0x21, 0x18, 0x02, 0x00, 0x00,
+	// 608 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x54, 0xcb, 0x6e, 0xd3, 0x40,
+	0x14, 0xcd, 0xd4, 0x76, 0xe2, 0xde, 0x3e, 0x64, 0x8d, 0x10, 0xb2, 0x2c, 0x30, 0xc6, 0x62, 0x11,
+	0x21, 0xe1, 0xa2, 0x54, 0xea, 0x82, 0x05, 0x92, 0x6b, 0x82, 0xc4, 0xa3, 0x05, 0xa6, 0x46, 0xac,
+	0x6d, 0x77, 0x9a, 0x8e, 0xe2, 0xc4, 0x96, 0x3d, 0xa1, 0x98, 0xaf, 0xe0, 0x1b, 0xf8, 0x01, 0xbe,
+	0x80, 0x7d, 0x97, 0x5d, 0xb2, 0x42, 0xa8, 0xfd, 0x07, 0xd6, 0x68, 0xc6, 0x8e, 0x9b, 0x8a, 0xbe,
+	0x76, 0xf7, 0x5c, 0x9f, 0x7b, 0x66, 0xce, 0x99, 0x2b, 0xc3, 0xda, 0x84, 0x96, 0x65, 0x34, 0xa2,
+	0x5e, 0x5e, 0x64, 0x3c, 0xc3, 0x38, 0x66, 0xbc, 0x3c, 0x8a, 0x72, 0xaf, 0x6d, 0xc7, 0xd6, 0x93,
+	0x11, 0xe3, 0x87, 0xb3, 0xd8, 0x4b, 0xb2, 0xc9, 0xc6, 0x28, 0x1b, 0x65, 0x1b, 0x92, 0x1a, 0xcf,
+	0x0e, 0x24, 0x92, 0x40, 0x56, 0xb5, 0x84, 0xfb, 0x17, 0x41, 0x37, 0x64, 0xc9, 0x98, 0x72, 0x7c,
+	0x0f, 0x96, 0xf3, 0x59, 0x9c, 0xb2, 0xf2, 0x90, 0x16, 0x26, 0x72, 0x50, 0x7f, 0x99, 0x9c, 0x37,
+	0xf0, 0x5d, 0xe8, 0x96, 0x74, 0xba, 0x1f, 0x66, 0xe6, 0x92, 0xfc, 0xd4, 0x20, 0x6c, 0x80, 0x92,
+	0xb0, 0x7d, 0x53, 0x91, 0x4d, 0x51, 0x62, 0x0b, 0xf4, 0xb8, 0xe2, 0x74, 0x8f, 0x7d, 0xa5, 0xa6,
+	0xea, 0xa0, 0xbe, 0x42, 0x5a, 0x2c, 0xce, 0xe0, 0x6c, 0x42, 0xf7, 0x78, 0x34, 0xc9, 0x4d, 0x4d,
+	0x7e, 0x3c, 0x6f, 0xe0, 0x2d, 0xd0, 0x4a, 0x1e, 0x71, 0x6a, 0x76, 0x1d, 0xd4, 0x5f, 0x1f, 0x38,
+	0xde, 0xff, 0xfe, 0xbc, 0xfa, 0xb2, 0xde, 0x9e, 0xe0, 0x91, 0x9a, 0xee, 0x0e, 0x40, 0x93, 0x18,
+	0xf7, 0x40, 0xd9, 0xa5, 0x47, 0x46, 0x47, 0x14, 0x7e, 0xf0, 0xc6, 0x40, 0x18, 0xa0, 0x1b, 0xf8,
+	0xbb, 0xc1, 0xf0, 0xad, 0xb1, 0x84, 0x57, 0xa0, 0x17, 0xbe, 0xda, 0x19, 0xbe, 0xfb, 0x18, 0x1a,
+	0x8a, 0xfb, 0x1c, 0xa0, 0x96, 0x4a, 0x59, 0xc9, 0xf1, 0x53, 0xd0, 0x18, 0xa7, 0x93, 0xd2, 0x44,
+	0x8e, 0xd2, 0x5f, 0x19, 0x58, 0x57, 0x9f, 0x4c, 0x6a, 0xa2, 0xfb, 0x03, 0xc1, 0x72, 0xdd, 0xf1,
+	0x93, 0xf1, 0x0d, 0xd9, 0x59, 0xa0, 0x17, 0x34, 0xa1, 0xec, 0x33, 0x2d, 0x9a, 0xf4, 0x5a, 0x7c,
+	0x49, 0x7e, 0x5b, 0xa0, 0xf2, 0x2a, 0xaf, 0xb3, 0x5b, 0x1f, 0xb8, 0x57, 0x5f, 0xc5, 0x4f, 0xc6,
+	0x5e, 0x58, 0xe5, 0x94, 0x48, 0xbe, 0x6b, 0x83, 0x2a, 0x90, 0xb0, 0xec, 0x07, 0xc1, 0xf0, 0x7d,
+	0x68, 0x74, 0x16, 0xec, 0x23, 0xf7, 0x05, 0xac, 0xb5, 0x73, 0xd2, 0xf4, 0xe6, 0x45, 0xd3, 0xf7,
+	0xaf, 0x3d, 0x69, 0xee, 0xfb, 0xbb, 0x0a, 0xbd, 0x9d, 0xfa, 0x3b, 0x7e, 0x09, 0xfa, 0x51, 0x34,
+	0x95, 0x09, 0x4a, 0xd3, 0x2b, 0x83, 0x47, 0x97, 0x69, 0x34, 0x74, 0xef, 0x53, 0xc3, 0xdd, 0x56,
+	0x8f, 0x7f, 0x3f, 0xe8, 0x90, 0x76, 0x56, 0xec, 0x56, 0x9c, 0x66, 0xc9, 0xb8, 0x34, 0x97, 0x1c,
+	0xa5, 0xbf, 0x4a, 0x1a, 0x84, 0x7d, 0xe8, 0xe5, 0x51, 0x95, 0x66, 0x91, 0xc8, 0x47, 0x5c, 0xf1,
+	0xe1, 0x75, 0xf2, 0xdb, 0x62, 0xa8, 0xd1, 0x9e, 0xcf, 0xe1, 0x67, 0x00, 0xbc, 0x7d, 0x66, 0x53,
+	0xbd, 0xf1, 0x75, 0x17, 0xd8, 0x38, 0x80, 0x35, 0xbe, 0x18, 0x98, 0xa9, 0xdd, 0x26, 0xa7, 0x8b,
+	0x33, 0xd6, 0x4f, 0x04, 0xfa, 0xdc, 0x38, 0x7e, 0x0d, 0x3d, 0x3a, 0xe5, 0x05, 0xa3, 0xf3, 0xcc,
+	0x1f, 0xdf, 0x26, 0x2f, 0x6f, 0x38, 0xe5, 0x45, 0x35, 0x77, 0xd6, 0x08, 0x60, 0x0c, 0xea, 0xc1,
+	0x2c, 0x4d, 0xe5, 0x42, 0xe9, 0x44, 0xd6, 0xd6, 0x07, 0xd0, 0x24, 0x17, 0xdf, 0x01, 0x4d, 0x66,
+	0x28, 0x9f, 0x65, 0x95, 0xd4, 0x40, 0xec, 0x61, 0x5e, 0xb0, 0xac, 0x60, 0xbc, 0x92, 0x63, 0x1a,
+	0x69, 0xb1, 0x78, 0x83, 0x24, 0x9a, 0x26, 0x34, 0x95, 0xab, 0xa8, 0x93, 0x06, 0x59, 0x9b, 0xa0,
+	0xc9, 0x60, 0x05, 0x21, 0x2f, 0xe8, 0x01, 0xfb, 0xd2, 0x68, 0x36, 0x48, 0xdc, 0x63, 0x3f, 0xe2,
+	0x91, 0x14, 0x5c, 0x25, 0xb2, 0xde, 0x36, 0x8f, 0x4f, 0x6d, 0x74, 0x72, 0x6a, 0xa3, 0x3f, 0xa7,
+	0x36, 0xfa, 0x76, 0x66, 0x77, 0x4e, 0xce, 0xec, 0xce, 0xaf, 0x33, 0xbb, 0x13, 0x77, 0xe5, 0x6f,
+	0x67, 0xf3, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x09, 0xa1, 0x9a, 0x2e, 0xca, 0x04, 0x00, 0x00,
+}
+
+func (m *Ticket) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Ticket) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Ticket) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.State != 0 {
+		i = encodeVarintMessage(dAtA, i, uint64(m.State))
+		i--
+		dAtA[i] = 0x30
+	}
+	if m.TimeStamp != 0 {
+		i = encodeVarintMessage(dAtA, i, uint64(m.TimeStamp))
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.ByteSize != 0 {
+		i = encodeVarintMessage(dAtA, i, uint64(m.ByteSize))
+		i--
+		dAtA[i] = 0x20
+	}
+	if len(m.Cid) > 0 {
+		i -= len(m.Cid)
+		copy(dAtA[i:], m.Cid)
+		i = encodeVarintMessage(dAtA, i, uint64(len(m.Cid)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.SendTo) > 0 {
+		i -= len(m.SendTo)
+		copy(dAtA[i:], m.SendTo)
+		i = encodeVarintMessage(dAtA, i, uint64(len(m.SendTo)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Publisher) > 0 {
+		i -= len(m.Publisher)
+		copy(dAtA[i:], m.Publisher)
+		i = encodeVarintMessage(dAtA, i, uint64(len(m.Publisher)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *Ticketlist) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Ticketlist) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Ticketlist) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Items) > 0 {
+		for iNdEx := len(m.Items) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Items[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintMessage(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TicketAck) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TicketAck) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TicketAck) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Type != 0 {
+		i = encodeVarintMessage(dAtA, i, uint64(m.Type))
+		i--
+		dAtA[i] = 0x20
+	}
+	if len(m.Cid) > 0 {
+		i -= len(m.Cid)
+		copy(dAtA[i:], m.Cid)
+		i = encodeVarintMessage(dAtA, i, uint64(len(m.Cid)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Receiver) > 0 {
+		i -= len(m.Receiver)
+		copy(dAtA[i:], m.Receiver)
+		i = encodeVarintMessage(dAtA, i, uint64(len(m.Receiver)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Publisher) > 0 {
+		i -= len(m.Publisher)
+		copy(dAtA[i:], m.Publisher)
+		i = encodeVarintMessage(dAtA, i, uint64(len(m.Publisher)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TicketAcklist) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TicketAcklist) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TicketAcklist) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Items) > 0 {
+		for iNdEx := len(m.Items) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Items[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintMessage(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Message) Marshal() (dAtA []byte, err error) {
@@ -301,6 +820,34 @@ func (m *Message) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.TicketAcklist) > 0 {
+		for iNdEx := len(m.TicketAcklist) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.TicketAcklist[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintMessage(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
+	if len(m.Ticketlist) > 0 {
+		for iNdEx := len(m.Ticketlist) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Ticketlist[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintMessage(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x22
+		}
+	}
 	if len(m.Payload) > 0 {
 		for iNdEx := len(m.Payload) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -477,6 +1024,90 @@ func encodeVarintMessage(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
+func (m *Ticket) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Publisher)
+	if l > 0 {
+		n += 1 + l + sovMessage(uint64(l))
+	}
+	l = len(m.SendTo)
+	if l > 0 {
+		n += 1 + l + sovMessage(uint64(l))
+	}
+	l = len(m.Cid)
+	if l > 0 {
+		n += 1 + l + sovMessage(uint64(l))
+	}
+	if m.ByteSize != 0 {
+		n += 1 + sovMessage(uint64(m.ByteSize))
+	}
+	if m.TimeStamp != 0 {
+		n += 1 + sovMessage(uint64(m.TimeStamp))
+	}
+	if m.State != 0 {
+		n += 1 + sovMessage(uint64(m.State))
+	}
+	return n
+}
+
+func (m *Ticketlist) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Items) > 0 {
+		for _, e := range m.Items {
+			l = e.Size()
+			n += 1 + l + sovMessage(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *TicketAck) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Publisher)
+	if l > 0 {
+		n += 1 + l + sovMessage(uint64(l))
+	}
+	l = len(m.Receiver)
+	if l > 0 {
+		n += 1 + l + sovMessage(uint64(l))
+	}
+	l = len(m.Cid)
+	if l > 0 {
+		n += 1 + l + sovMessage(uint64(l))
+	}
+	if m.Type != 0 {
+		n += 1 + sovMessage(uint64(m.Type))
+	}
+	return n
+}
+
+func (m *TicketAcklist) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Items) > 0 {
+		for _, e := range m.Items {
+			l = e.Size()
+			n += 1 + l + sovMessage(uint64(l))
+		}
+	}
+	return n
+}
+
 func (m *Message) Size() (n int) {
 	if m == nil {
 		return 0
@@ -493,6 +1124,18 @@ func (m *Message) Size() (n int) {
 	}
 	if len(m.Payload) > 0 {
 		for _, e := range m.Payload {
+			l = e.Size()
+			n += 1 + l + sovMessage(uint64(l))
+		}
+	}
+	if len(m.Ticketlist) > 0 {
+		for _, e := range m.Ticketlist {
+			l = e.Size()
+			n += 1 + l + sovMessage(uint64(l))
+		}
+	}
+	if len(m.TicketAcklist) > 0 {
+		for _, e := range m.TicketAcklist {
 			l = e.Size()
 			n += 1 + l + sovMessage(uint64(l))
 		}
@@ -559,6 +1202,554 @@ func sovMessage(x uint64) (n int) {
 }
 func sozMessage(x uint64) (n int) {
 	return sovMessage(uint64((x << 1) ^ uint64((int64(x) >> 63))))
+}
+func (m *Ticket) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMessage
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Ticket: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Ticket: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Publisher", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Publisher = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SendTo", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SendTo = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Cid", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Cid = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ByteSize", wireType)
+			}
+			m.ByteSize = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ByteSize |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TimeStamp", wireType)
+			}
+			m.TimeStamp = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.TimeStamp |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field State", wireType)
+			}
+			m.State = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.State |= Ticket_State(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMessage(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *Ticketlist) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMessage
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Ticketlist: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Ticketlist: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Items", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Items = append(m.Items, &Ticket{})
+			if err := m.Items[len(m.Items)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMessage(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TicketAck) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMessage
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TicketAck: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TicketAck: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Publisher", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Publisher = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Receiver", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Receiver = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Cid", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Cid = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
+			}
+			m.Type = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Type |= TicketAck_Type(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMessage(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TicketAcklist) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMessage
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TicketAcklist: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TicketAcklist: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Items", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Items = append(m.Items, &TicketAck{})
+			if err := m.Items[len(m.Items)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMessage(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
 }
 func (m *Message) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
@@ -685,6 +1876,74 @@ func (m *Message) Unmarshal(dAtA []byte) error {
 			}
 			m.Payload = append(m.Payload, Message_Block{})
 			if err := m.Payload[len(m.Payload)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Ticketlist", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Ticketlist = append(m.Ticketlist, &Ticket{})
+			if err := m.Ticketlist[len(m.Ticketlist)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TicketAcklist", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMessage
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMessage
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthMessage
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TicketAcklist = append(m.TicketAcklist, &TicketAck{})
+			if err := m.TicketAcklist[len(m.TicketAcklist)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -1069,7 +2328,6 @@ func (m *Message_Block) Unmarshal(dAtA []byte) error {
 func skipMessage(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
-	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -1101,8 +2359,10 @@ func skipMessage(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
+			return iNdEx, nil
 		case 1:
 			iNdEx += 8
+			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -1123,30 +2383,55 @@ func skipMessage(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthMessage
 			}
 			iNdEx += length
-		case 3:
-			depth++
-		case 4:
-			if depth == 0 {
-				return 0, ErrUnexpectedEndOfGroupMessage
+			if iNdEx < 0 {
+				return 0, ErrInvalidLengthMessage
 			}
-			depth--
+			return iNdEx, nil
+		case 3:
+			for {
+				var innerWire uint64
+				var start int = iNdEx
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return 0, ErrIntOverflowMessage
+					}
+					if iNdEx >= l {
+						return 0, io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					innerWire |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				innerWireType := int(innerWire & 0x7)
+				if innerWireType == 4 {
+					break
+				}
+				next, err := skipMessage(dAtA[start:])
+				if err != nil {
+					return 0, err
+				}
+				iNdEx = start + next
+				if iNdEx < 0 {
+					return 0, ErrInvalidLengthMessage
+				}
+			}
+			return iNdEx, nil
+		case 4:
+			return iNdEx, nil
 		case 5:
 			iNdEx += 4
+			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
-		if iNdEx < 0 {
-			return 0, ErrInvalidLengthMessage
-		}
-		if depth == 0 {
-			return iNdEx, nil
-		}
 	}
-	return 0, io.ErrUnexpectedEOF
+	panic("unreachable")
 }
 
 var (
-	ErrInvalidLengthMessage        = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowMessage          = fmt.Errorf("proto: integer overflow")
-	ErrUnexpectedEndOfGroupMessage = fmt.Errorf("proto: unexpected end of group")
+	ErrInvalidLengthMessage = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowMessage   = fmt.Errorf("proto: integer overflow")
 )

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	bitswap "github.com/ipfs/go-bitswap"
-	bssession "github.com/ipfs/go-bitswap/session"
-	testinstance "github.com/ipfs/go-bitswap/testinstance"
+	bitswap "github.com/SJTU-OpenNetwork/go-bitswap"
+	bssession "github.com/SJTU-OpenNetwork/go-bitswap/session"
+	testinstance "github.com/SJTU-OpenNetwork/go-bitswap/testinstance"
 	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	blocksutil "github.com/ipfs/go-ipfs-blocksutil"

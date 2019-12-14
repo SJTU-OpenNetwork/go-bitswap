@@ -1,8 +1,9 @@
-module github.com/ipfs/go-bitswap
+module github.com/SJTU-OpenNetwork/go-bitswap
 
 require (
 	github.com/cskr/pubsub v1.0.2
 	github.com/gogo/protobuf v1.3.1
+	github.com/golang/protobuf v1.3.1
 	github.com/google/uuid v1.1.1
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-cid v0.0.3
@@ -27,6 +28,7 @@ require (
 	github.com/libp2p/go-msgio v0.0.4
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/multiformats/go-multiaddr v0.1.1
+	github.com/multiformats/go-multihash v0.0.8
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 )
 

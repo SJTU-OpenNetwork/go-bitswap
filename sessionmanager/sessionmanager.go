@@ -8,8 +8,8 @@ import (
 	cid "github.com/ipfs/go-cid"
 	delay "github.com/ipfs/go-ipfs-delay"
 
-	notifications "github.com/ipfs/go-bitswap/notifications"
-	bssession "github.com/ipfs/go-bitswap/session"
+	notifications "github.com/SJTU-OpenNetwork/go-bitswap/notifications"
+	bssession "github.com/SJTU-OpenNetwork/go-bitswap/session"
 	exchange "github.com/ipfs/go-ipfs-exchange-interface"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )

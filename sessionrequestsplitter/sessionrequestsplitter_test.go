@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ipfs/go-bitswap/testutil"
+	"github.com/SJTU-OpenNetwork/go-bitswap/testutil"
 )
 
 func quadEaseOut(t float64) float64 { return t * t }

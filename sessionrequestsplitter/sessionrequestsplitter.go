@@ -3,7 +3,7 @@ package sessionrequestsplitter
 import (
 	"context"
 
-	bssd "github.com/ipfs/go-bitswap/sessiondata"
+	bssd "github.com/SJTU-OpenNetwork/go-bitswap/sessiondata"
 
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"

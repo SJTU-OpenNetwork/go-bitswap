@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	bsmsg "github.com/ipfs/go-bitswap/message"
-	tn "github.com/ipfs/go-bitswap/testnet"
+	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
+	tn "github.com/SJTU-OpenNetwork/go-bitswap/testnet"
 	blocksutil "github.com/ipfs/go-ipfs-blocksutil"
 	mockrouting "github.com/ipfs/go-ipfs-routing/mock"
 

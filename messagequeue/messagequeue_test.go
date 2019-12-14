@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-bitswap/testutil"
+	"github.com/SJTU-OpenNetwork/go-bitswap/testutil"
 
-	bsmsg "github.com/ipfs/go-bitswap/message"
-	bsnet "github.com/ipfs/go-bitswap/network"
+	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
+	bsnet "github.com/SJTU-OpenNetwork/go-bitswap/network"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 

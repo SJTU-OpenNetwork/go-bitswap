@@ -2,17 +2,59 @@ package message
 
 import (
 	"bytes"
+	"crypto/rand"
+	"github.com/SJTU-OpenNetwork/go-bitswap/tickets"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"testing"
 
-	pb "github.com/ipfs/go-bitswap/message/pb"
+	pb "github.com/SJTU-OpenNetwork/go-bitswap/message/pb"
 
 	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	u "github.com/ipfs/go-ipfs-util"
+	peertest "github.com/libp2p/go-libp2p-core/test"
+	mh "github.com/multiformats/go-multihash"
 )
 
 func mkFakeCid(s string) cid.Cid {
 	return cid.NewCidV0(u.Hash([]byte(s)))
+}
+
+func mkFakePid() (peer.ID, error){
+	return peertest.RandPeerID()
+}
+
+func makeRandomCid() cid.Cid {
+	p := make([]byte, 256)
+	rand.Read(p)
+	/*
+		if err != nil {
+			//t.Fatal(err)
+			return nil
+		}
+	*/
+
+	h, _ := mh.Sum(p, mh.SHA3, 4)
+	/*
+		if err != nil {
+			t.Fatal(err)
+		}
+	*/
+
+	cid := cid.NewCidV1(7, h)
+	return cid
+}
+
+func randomTicket() tickets.Ticket{
+	peer1, _ := mkFakePid()
+	peer2, _ := mkFakePid()
+	return tickets.CreateBasicTicket(peer1, peer2, makeRandomCid(), 2048)
+}
+
+func randomTicketAck() tickets.TicketAck{
+	peer1, _ := mkFakePid()
+	peer2, _ := mkFakePid()
+	return tickets.CreateBasicTicketAck(peer1, peer2, makeRandomCid(), 0)
 }
 
 func TestAppendWanted(t *testing.T) {
@@ -195,4 +237,17 @@ func TestDuplicates(t *testing.T) {
 	if len(msg.Blocks()) != 1 {
 		t.Fatal("Duplicate in BitSwapMessage")
 	}
+}
+
+
+func TestTicketAndAcks(t *testing.T){
+	msg := New(true)
+
+	msg.AddEntry(makeRandomCid(), 1)
+	msg.AddEntry(makeRandomCid(), 1)
+	msg.AddTicket(randomTicket())
+	msg.AddTicket(randomTicket())
+	msg.AddTicketAck(randomTicketAck())
+	msg.AddTicketAck(randomTicketAck())
+	t.Log(msg.Loggable())
 }

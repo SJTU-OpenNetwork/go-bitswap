@@ -4,8 +4,8 @@ import (
 	"context"
 	"math"
 
-	bsmsg "github.com/ipfs/go-bitswap/message"
-	wantlist "github.com/ipfs/go-bitswap/wantlist"
+	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
+	wantlist "github.com/SJTU-OpenNetwork/go-bitswap/wantlist"
 	logging "github.com/ipfs/go-log"
 
 	cid "github.com/ipfs/go-cid"

@@ -7,10 +7,10 @@ import (
 
 	delay "github.com/ipfs/go-ipfs-delay"
 
-	notifications "github.com/ipfs/go-bitswap/notifications"
-	bssession "github.com/ipfs/go-bitswap/session"
-	bssd "github.com/ipfs/go-bitswap/sessiondata"
-	"github.com/ipfs/go-bitswap/testutil"
+	notifications "github.com/SJTU-OpenNetwork/go-bitswap/notifications"
+	bssession "github.com/SJTU-OpenNetwork/go-bitswap/session"
+	bssd "github.com/SJTU-OpenNetwork/go-bitswap/sessiondata"
+	"github.com/SJTU-OpenNetwork/go-bitswap/testutil"
 
 	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"

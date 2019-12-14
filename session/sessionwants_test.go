@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-bitswap/testutil"
+	"github.com/SJTU-OpenNetwork/go-bitswap/testutil"
 	cid "github.com/ipfs/go-cid"
 )
 

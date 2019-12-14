@@ -4,12 +4,13 @@ package decision
 import (
 	"context"
 	"fmt"
+	"github.com/SJTU-OpenNetwork/go-bitswap/tickets"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
-	bsmsg "github.com/ipfs/go-bitswap/message"
-	wl "github.com/ipfs/go-bitswap/wantlist"
+	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
+	wl "github.com/SJTU-OpenNetwork/go-bitswap/wantlist"
 	cid "github.com/ipfs/go-cid"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 	logging "github.com/ipfs/go-log"
@@ -84,6 +85,9 @@ const (
 
 	// Number of concurrent workers that process requests to the blockstore
 	blockstoreWorkerCount = 128
+
+	defaultRequestCapacity = 128
+	defaultRequestSizeCapacity = 128 * 512 * 1024
 )
 
 var (
@@ -120,6 +124,11 @@ type Engine struct {
 	// Requests are popped from the queue, packaged up, and placed in the
 	// outbox.
 	peerRequestQueue *peertaskqueue.PeerTaskQueue
+	// Capacity of RequestQueue
+	// Tickets instead of blocks would be sent if request queue is full.
+	requestRecorder *taskQueueRecorder
+
+	ticketStore tickets.TicketStore
 
 	// FIXME it's a bit odd for the client and the worker to both share memory
 	// (both modify the peerRequestQueue) and also to communicate over the
@@ -128,12 +137,14 @@ type Engine struct {
 	// that case, no lock would be required.
 	workSignal chan struct{}
 
+	ticketSignal chan struct{}
+
 	// outbox contains outgoing messages to peers. This is owned by the
 	// taskWorker goroutine
 	outbox chan (<-chan *Envelope)
 
 	// TODO: ticketOutbox contains outgoing messages (tickets or ticket acks) to peers. - Jerry
-	ticketOutbox chan (<-chan *Envelope)
+	ticketOutbox chan *Envelope
 
 	bsm *blockstoreManager
 
@@ -161,7 +172,14 @@ func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger)
 		workSignal:      make(chan struct{}, 1),
 		ticker:          time.NewTicker(time.Millisecond * 100),
 		taskWorkerCount: taskWorkerCount,
-		// TODO: add ticketOutbox - Jerry
+		// TODO: add ticketOutbox - Jerry They can share the same outbox - Riften
+		// ticketOutbox: 	 make(chan (<-chan *Envelope), outboxChanBuffer),
+		requestRecorder: &taskQueueRecorder{
+			blockNumber: 0,
+			blockSize: 0,
+			maxNumber:defaultRequestCapacity,
+			maxSize:defaultRequestSizeCapacity,
+		},
 	}
 	e.tagQueued = fmt.Sprintf(tagFormat, "queued", uuid.New().String())
 	e.tagUseful = fmt.Sprintf(tagFormat, "useful", uuid.New().String())
@@ -352,12 +370,71 @@ func (e *Engine) taskWorkerExit() {
 }
 
 // TODO: add ticketWorker - sending tickets cannot use the same thread as normal messages - Jerry
+// - Get ticket out of sendTicketStore
+// - Pack it into envelop
+// - put it to outbox
+// For now it runs simultaneously with taskWorker and share the same outbox
 func (e *Engine) ticketWorker(ctx context.Context) {
-
+	//defer e.task
+	// defer e.taskWorkerExit()
+	for {
+		oneTimeUse := make(chan *Envelope, 1) // buffer to prevent blocking
+		select {
+		case <-ctx.Done():
+			return
+		case e.outbox <- oneTimeUse:
+		}
+		// receiver is ready for an outoing envelope. let's prepare one. first,
+		// we must acquire a task from the PQ...
+		envelope, err := e.nextTicketEnvelope(ctx)
+		if err != nil {
+			close(oneTimeUse)
+			return // ctx cancelled
+		}
+		oneTimeUse <- envelope // buffered. won't block
+		close(oneTimeUse)
+	}
 }
+
+
 // TODO: add ticketWorkerExit - Jerry
 func (e *Engine) ticketWorkerExit() {
 
+}
+
+//func (e )
+
+func (e *Engine) nextTicketEnvelope(ctx context.Context) (*Envelope, error) {
+	for {
+		nextTask := e.ticketStore.PopTickets()
+		for nextTask == nil {
+			select{
+			case <- ctx.Done():
+				return nil, ctx.Err()
+			case <- e.ticketSignal:
+				nextTask = e.ticketStore.PopTickets()
+			}
+		}
+
+		msg := bsmsg.New(false)
+		for _, t := range nextTask.Tickets {
+			msg.AddTicket(t)
+		}
+		if msg.Empty() {
+			continue
+		}
+		return &Envelope{
+			Peer: nextTask.Target,
+			Message: msg,
+			Sent: func(){
+				select {
+				// Tell the taskworker
+				case e.workSignal <- struct{}{}:
+				default:
+				}
+			},
+		}, nil
+	}
 }
 
 // nextEnvelope runs in the taskWorker goroutine. Returns an error if the
@@ -365,15 +442,19 @@ func (e *Engine) ticketWorkerExit() {
 func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 	for {
 		nextTask := e.peerRequestQueue.PopBlock()
+		e.requestRecorder.BlocksPop(nextTask)
+		//WorkSignal will be sent when a new task is pushed into request queue.
 		for nextTask == nil {
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			case <-e.workSignal:
 				nextTask = e.peerRequestQueue.PopBlock()
+				e.requestRecorder.BlocksPop(nextTask)
 			case <-e.ticker.C:
 				e.peerRequestQueue.ThawRound()
 				nextTask = e.peerRequestQueue.PopBlock()
+				e.requestRecorder.BlocksPop(nextTask)
 			}
 		}
 
@@ -416,10 +497,10 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 func (e *Engine) Outbox() <-chan (<-chan *Envelope) {
 	return e.outbox
 }
-
-func (e *Engine) TicketOutbox() <-chan (<-chan *Envelope) {
-	return e.ticketOutbox
-}
+//
+//func (e *Engine) TicketOutbox() <-chan (<-chan *Envelope) {
+//	return e.ticketOutbox
+//}
 
 // Peers returns a slice of Peers with whom the local node has active sessions.
 func (e *Engine) Peers() []peer.ID {
@@ -456,9 +537,10 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			wantKs.Add(entry.Cid)
 		}
 	}
+
 	blockSizes := e.bsm.getBlockSizes(ctx, wantKs.Keys())
 
-	l := e.findOrCreate(p)
+	l := e.findOrCreate(p)		//Find the ledger
 	l.lk.Lock()
 	defer l.lk.Unlock()
 	if m.Full() {
@@ -467,6 +549,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
 	var msgSize int
 	var activeEntries []peertask.Task
+
 	for _, entry := range m.Wantlist() {
 		if entry.Cancel {
 			log.Debugf("%s cancel %s", p, entry.Cid)
@@ -483,7 +566,11 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 				// resources are sufficient - Jerry
 				newWorkExists = true
 				if msgSize+blockSize > maxMessageSize {
-					e.peerRequestQueue.PushBlock(p, activeEntries...)
+					if(e.requestRecorder.IsFull()){	//We do not have enough network resources. Send tickets instead of send the block
+						//e.ticket
+					} else {
+						e.peerRequestQueue.PushBlock(p, activeEntries...)
+					}
 					activeEntries = []peertask.Task{}
 					msgSize = 0
 				}
@@ -492,6 +579,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			} else {
 				// TODO: although we do not have the block, but I have the ticket. - Jerry
 				// So I can send a ticket with higher level - Jerry
+				// Judge whether we have the tickets
 
 			}
 		}
@@ -504,13 +592,17 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		l.ReceivedBytes(len(block.RawData()))
 	}
 
-	if m.TicketList() != nil {
+	if m.Tickets() != nil {
 		// TODO: handle tickets and ticket acks - Jerry
 		// More specifically, if the ticket is better, keep that ticket
 		// and abandon the previous ticket. Otherwise, reject the ticket.
 		// Both conditions should send a ack. 
 		// After receiving a ack, put the block into the send queue or 
 		// remove it from the send queue.
+	}
+
+	if m.TicketAcks() != nil{
+
 	}
 }
 
@@ -620,6 +712,7 @@ func (e *Engine) findOrCreate(p peer.ID) *ledger {
 
 func (e *Engine) signalNewWork() {
 	// Signal task generation to restart (if stopped!)
+	// workSignal will wake up task worker
 	select {
 	case e.workSignal <- struct{}{}:
 	default:

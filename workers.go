@@ -3,8 +3,8 @@ package bitswap
 import (
 	"context"
 
-	engine "github.com/ipfs/go-bitswap/decision"
-	bsmsg "github.com/ipfs/go-bitswap/message"
+	engine "github.com/SJTU-OpenNetwork/go-bitswap/decision"
+	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
 	cid "github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	process "github.com/jbenet/goprocess"
@@ -14,6 +14,10 @@ import (
 // TaskWorkerCount is the total number of simultaneous threads sending
 // outgoing messages
 var TaskWorkerCount = 8
+
+// TicketWorkerCount is the total number of si,ultaneous threads sending outgoing messages
+// TODO: Judge the number of ticketworkers - Riften
+var TicketWorkerCount = 4
 
 func (bs *Bitswap) startWorkers(ctx context.Context, px process.Process) {
 
@@ -38,6 +42,9 @@ func (bs *Bitswap) startWorkers(ctx context.Context, px process.Process) {
 	}
 
 	// TODO: start ticketWorker - Jerry
+	for i := 0; i < TicketWorkerCount; i++ {
+
+	}
 }
 
 func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
@@ -74,6 +81,7 @@ func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
 					bs.counters.dataSent += uint64(len(block.RawData()))
 				}
 				bs.counterLk.Unlock()
+
 			case <-ctx.Done():
 				return
 			}
@@ -86,15 +94,40 @@ func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
 
 // TODO: ticketWorker is used to send ticket or ticket ack - Jerry
 func (bs *Bitswap) ticketWorker(ctx context.Context, id int) {
-	
+	for {
+		select{
+		//case nextEnve
+		}
+	}
 }
 
 // TODO: add sendTicket - Jerry
 func (bs *Bitswap) sendTicket(ctx context.Context, env *engine.Envelope) {
+	defer env.Sent()
+
+	msg := bsmsg.New(false)
+	for _, ticket := range env.Message.Tickets(){
+		msg.AddTicket(ticket)
+	}
+	err := bs.network.SendMessage(ctx, env.Peer, msg)
+	if err != nil {
+		log.Infof("sendticket error :%s", err)
+	}
 }
 
 // TODO: add sendTicketAck - Jerry
 func (bs *Bitswap) sendTicketAck(ctx context.Context, env *engine.Envelope) {
+	defer env.Sent()
+
+	msg := bsmsg.New(false)
+	for _, ack := range env.Message.TicketAcks(){
+		msg.AddTicketAck(ack)
+	}
+	err := bs.network.SendMessage(ctx, env.Peer, msg)
+	if err != nil {
+		log.Infof("sendticketack error :%s", err)
+	}
+
 }
 
 func (bs *Bitswap) sendBlocks(ctx context.Context, env *engine.Envelope) {

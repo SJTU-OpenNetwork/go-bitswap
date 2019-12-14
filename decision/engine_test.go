@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	message "github.com/ipfs/go-bitswap/message"
+	message "github.com/SJTU-OpenNetwork/go-bitswap/message"
 
 	blocks "github.com/ipfs/go-block-format"
 	ds "github.com/ipfs/go-datastore"

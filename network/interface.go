@@ -3,7 +3,7 @@ package network
 import (
 	"context"
 
-	bsmsg "github.com/ipfs/go-bitswap/message"
+	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
 
 	cid "github.com/ipfs/go-cid"
 
