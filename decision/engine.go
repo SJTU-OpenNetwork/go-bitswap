@@ -601,8 +601,39 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		// remove it from the send queue.
 	}
 
-	if m.TicketAcks() != nil{
-
+	// Receive Ticket Acks - Jerry 2019/12/14
+	acks := m.TicketAcks()
+	var ackMap map[cid.Cid] *tickets.TicketAck
+	var accepts []cid.Cid
+	for _, ack := range acks {
+		switch ack.Type  {
+		case TicketAck_ACCEPT:
+			accepts.append(ack.Cid)
+		case TicketAck_CANCEL:
+			e.ticketStore.RemoveTicket(ack)
+		}
+		ackMap[ack.Cid] = &ack
+	}
+	blockSizes := bsm.getBlockSizes(ctx, accepts)
+	msgSize = 0
+	for _, c := range accepts {
+		blockSize, ok := blockSizes[c]
+		if ok {
+			// I have corresponding block, send it
+			if msgSize+blockSize > maxMessageSize {
+				e.peerRequestQueue.PushBlock(p, activeEntries...)
+				activeEntries = []peertask.Task{}
+				msgSize = 0
+			}
+			activeEntries = append(activeEntries, peertask.Task{Identifier: entry.Cid, Priority: entry.Priority})
+			msgSize += blockSize
+		} else {
+			// I don't have corresponding block
+			e.ticketStore.PrepareSending(ackMap[c])
+		}
+	}
+	if len(activeEntries) > 0 {
+		e.peerRequestQueue.PushBlock(p, activeEntries...)
 	}
 }
 

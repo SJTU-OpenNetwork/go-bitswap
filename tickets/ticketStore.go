@@ -3,6 +3,7 @@ package tickets
 import (
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
+	wantlist "github.com/SJTU-OpenNetwork/go-bitswap/wantlist"
 )
 
 type TicketTask struct{
@@ -19,9 +20,9 @@ type TicketTask struct{
  * 		- Control how many tickets to publish
  */
 type TicketStore interface{
-	AddTicket(ticket Ticket) error
+	AddTicket(ticket Ticket) error // called after sending a ticket
 	GetTickets(cid cid.Cid) ([]Ticket, error)
-	RemoveTicket(pid peer.ID, cid cid.Cid) error
+	RemoveTicket(pid peer.ID, cid cid.Cid) error // remove a specific ticket from the `sended ticket list`, called after receive a reject
 	RemoveTicketEqualsTo(ticket Ticket)
 	Clean()
 	RemoveCanceled() int
@@ -32,4 +33,9 @@ type TicketStore interface{
 	TicketNumber() int
 	TicketSize() int64
 	//StoreType()
+
+	// Add by Jerry
+	PrepareSending(entry wantlist.Entry) error // called if don't have corresponding block when receiving an ACK, put the entry on a list
+	RemoveSendingTask(cid []cid.Cid, pid peer.ID) error // remove a specific task from the `prepared sending task list`, called after receive a reject
+	PopSendingTasks(cid []cid.Cid) ([]wantlist.Entry, error) // pop all tasks for a specific cid in `prepared sending task list`, called when a block is received
 }
