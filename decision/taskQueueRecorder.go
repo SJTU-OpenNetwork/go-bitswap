@@ -30,3 +30,12 @@ func(t *taskQueueRecorder) IsFull() bool{
 	}
 	return false
 }
+
+/*
+ * The predicted complete time for the tasks in task queue.
+ * It was used to estimate the timestamp of ticket.
+ * return: the predicted time in millsecond
+ */
+func (t *taskQueueRecorder) PredictTime() int64 {
+	return 0
+}
