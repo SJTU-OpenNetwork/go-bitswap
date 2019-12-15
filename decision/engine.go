@@ -606,9 +606,10 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
 	// Receive Ticket Acks - Jerry 2019/12/14
 	acks := m.TicketAcks()
-	var ackMap map[cid.Cid] tickets.TicketAck
-	var accepts, rejects []cid.Cid
-    var prepare []tickets.TicketAck
+	ackMap := make(map[cid.Cid] tickets.TicketAck)
+	accepts := make([]cid.Cid,0)
+	rejects := make([]cid.Cid,0)
+	prepare := make([]tickets.TicketAck,0)
 
     for _, ack := range acks {
 		switch ack.ACK()  {
