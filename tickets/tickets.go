@@ -47,11 +47,11 @@ const(
 
 
 type Ticket interface {
-	Publisher() peer.ID		// Needed because the ticket receiver should send ack to ticket sender
+	//Publisher() peer.ID		// Needed because the ticket receiver should send ack to ticket sender
 	SendTo() peer.ID
 	Cid() cid.Cid
 	Level() int64			// Higher level, lower priority
-	Valid(peer.ID, peer.ID) bool
+	//Valid(peer.ID, peer.ID) bool
 	GetSize() int64
 	GetState() int32
 	BasicInfo() string
@@ -83,7 +83,7 @@ type TicketAck interface {
 // TODO: Is it possible that the timestamps of received ticket and sent ticket are different? Is that matters? - Riften
 
 type BasicTicket struct{
-	publisher peer.ID
+	//publisher peer.ID
 	sendTo	peer.ID
 	contentId cid.Cid
 	timeStamp int64
@@ -99,10 +99,10 @@ type BasicTicketAck struct{
 }
 
 func NewBasicTicket(ticket *pb.Ticket) (*BasicTicket, error){
-	publisherId, err := peer.IDB58Decode(ticket.GetPublisher())
-	if(err != nil){
-		return nil, err
-	}
+	//publisherId, err := peer.IDB58Decode(ticket.GetPublisher())
+	//if(err != nil){
+	//	return nil, err
+	//}
 	sendtoId, err := peer.IDB58Decode(ticket.GetSendTo())
 	if(err != nil){
 		return nil, err
@@ -116,7 +116,7 @@ func NewBasicTicket(ticket *pb.Ticket) (*BasicTicket, error){
 
 	//pb.Ticket.GetState().EnumDescriptor()
 	return &BasicTicket{
-		publisher: publisherId,
+		//publisher: publisherId,
 		sendTo:    sendtoId,
 		contentId: contentId,
 		timeStamp: ticket.GetTimeStamp(),
@@ -125,9 +125,9 @@ func NewBasicTicket(ticket *pb.Ticket) (*BasicTicket, error){
 	}, nil
 }
 
-func CreateBasicTicket(publisher peer.ID, sendTo peer.ID, contentId cid.Cid, blockSize int64) *BasicTicket{
+func CreateBasicTicket(sendTo peer.ID, contentId cid.Cid, blockSize int64) *BasicTicket{
 	return &BasicTicket{
-		publisher: publisher,
+		//publisher: publisher,
 		sendTo:    sendTo,
 		contentId: contentId,
 		timeStamp: makeTimestamp(time.Now()),
@@ -136,9 +136,19 @@ func CreateBasicTicket(publisher peer.ID, sendTo peer.ID, contentId cid.Cid, blo
 	}
 }
 
-func (t *BasicTicket) Publisher() peer.ID{
-	return t.publisher
+func CreateBasicTicketWithTime(sendTo peer.ID, contentId cid.Cid, blockSize int64, timeStamp int64) *BasicTicket{
+	return &BasicTicket{
+		sendTo: sendTo,
+		contentId: contentId,
+		blockSize: blockSize,
+		timeStamp: timeStamp,
+		state: STATE_NEW,
+	}
 }
+
+//func (t *BasicTicket) Publisher() peer.ID{
+//	return t.publisher
+//}
 
 func (t *BasicTicket) SendTo() peer.ID{
 	return t.sendTo
@@ -152,9 +162,9 @@ func (t* BasicTicket) Level() int64{
 	return t.timeStamp
 }
 
-func (t* BasicTicket) Valid(sender peer.ID, receiver peer.ID) bool{
-	return t.Publisher() == sender && t.SendTo() == receiver
-}
+//func (t* BasicTicket) Valid(sender peer.ID, receiver peer.ID) bool{
+//	return t.Publisher() == sender && t.SendTo() == receiver
+//}
 
 func (t* BasicTicket) GetSize() int64{
 	return t.blockSize
@@ -177,12 +187,12 @@ func (t* BasicTicket) Canceled(){
 }
 
 func (t *BasicTicket) ToProto() *pb.Ticket{
-	publisher := t.publisher.String()
+	//publisher := t.publisher.String()
 	receiver := t.sendTo.String()
 	cid := t.contentId.String()
 
 	re := &pb.Ticket{
-		Publisher: publisher,
+		//Publisher: publisher,
 		SendTo:    receiver,
 		Cid:       cid,
 		ByteSize:  t.blockSize,
@@ -193,13 +203,13 @@ func (t *BasicTicket) ToProto() *pb.Ticket{
 }
 
 func (t *BasicTicket) BasicInfo() string{
-	return fmt.Sprintf("From: %s\nTo: %s\nCid: %s\nbyteSize: %d\ntimeStamp: %d\nState:%s",
-		t.publisher.Pretty(), t.sendTo.Pretty(), t.contentId.String(), t.blockSize, t.timeStamp, pb.Ticket_State_name[t.state])
+	return fmt.Sprintf("To: %s\nCid: %s\nbyteSize: %d\ntimeStamp: %d\nState:%s",
+		t.sendTo.Pretty(), t.contentId.String(), t.blockSize, t.timeStamp, pb.Ticket_State_name[t.state])
 }
 
 func (t *BasicTicket) Loggable() map[string]interface{} {
 	return map[string]interface{}{
-		"publisher": t.Publisher().String(),
+		//"publisher": t.Publisher().String(),
 		"receiver": t.SendTo().String(),
 		"cid": t.Cid().String(),
 		"timestamp": t.Level(),

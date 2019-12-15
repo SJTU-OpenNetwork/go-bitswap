@@ -54,7 +54,7 @@ func NewLinkedTicketStore() *linkedTicketStore{
 }
 
 // deprecated
-func NewLinkedSendTicketStore(creater peer.ID) *linkedTicketStore{
+func NewLinkedTicketStore(creater peer.ID) *linkedTicketStore{
 	return &linkedTicketStore{
 		creater: creater,
 		dataStore: make(map[cid.Cid]*list.List),
@@ -67,14 +67,14 @@ func NewLinkedSendTicketStore(creater peer.ID) *linkedTicketStore{
 }
 
 // deprecated
-func NewLinkedRecvTicketStore(creater peer.ID) *linkedTicketStore{
-	return &linkedTicketStore{
-		creater: creater,
-		dataStore: make(map[cid.Cid]*list.List),
-		dataTracker: make(map[cid.Cid]map[peer.ID]*list.Element),
-		storeType: STORE_RECV,
-	}
-}
+//func NewLinkedRecvTicketStore(creater peer.ID) *linkedTicketStore{
+//	return &linkedTicketStore{
+//		creater: creater,
+//		dataStore: make(map[cid.Cid]*list.List),
+//		dataTracker: make(map[cid.Cid]map[peer.ID]*list.Element),
+//		storeType: STORE_RECV,
+//	}
+//}
 
 // deprecated
 func (s *linkedTicketStore) varify(ticket Ticket) error{

@@ -516,10 +516,18 @@ func (e *Engine) Peers() []peer.ID {
 	return response
 }
 
-func (e *Engine) createTicketsFromEntry(target peer.ID, tasks []peertask.Task){
+func createTicketsFromEntry(target peer.ID, tasks []peertask.Task, blockSizes map[cid.Cid]int) []tickets.Ticket{
+	res := make([]tickets.Ticket, 0)
 	for _, task := range tasks{
-		ticket := tickets.CreateBasicTicket()
+		ticketSize, ok := blockSizes[task.Identifier.(cid.Cid)]
+		if ok {
+			ticket := tickets.CreateBasicTicket(target, task.Identifier.(cid.Cid), int64(ticketSize))
+			res := append(res, ticket)
+		} else {
+			log.Error("Can not get block sizes when create ticket")
+		}
 	}
+	return res
 }
 
 // MessageReceived performs book-keeping. Returns error if passed invalid
@@ -556,6 +564,8 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
 	var msgSize int
 	var activeEntries []peertask.Task
+	var activeTickets []tickets.Ticket
+	var queryCids []cid.Cid
 
 	for _, entry := range m.Wantlist() {
 		if entry.Cancel {
@@ -568,7 +578,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			blockSize, ok := blockSizes[entry.Cid]
 			if ok {
 				// we have the block
-				// TODO: although we have the block, but the network resources are limited
+				// although we have the block, but the network resources are limited
 				// I may just send a ticket, which means I will send the block when the 
 				// resources are sufficient - Jerry
 				newWorkExists = true
@@ -576,8 +586,9 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 					if(e.requestRecorder.IsFull()){	//We do not have enough network resources. Send tickets instead of send the block
 						//e.ticketStore.GetTickets()
 						//Create ticket
-						//add to ticketstore
-						//add to sender
+						tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
+						activeTickets := append(activeTickets, tmptickets...)
+						// Add it to sender
 					} else {
 						e.peerRequestQueue.PushBlock(p, activeEntries...)
 					}
@@ -587,16 +598,33 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 				activeEntries = append(activeEntries, peertask.Task{Identifier: entry.Cid, Priority: entry.Priority})
 				msgSize += blockSize
 			} else {
-				// TODO: although we do not have the block, but I have the ticket. - Jerry
+				// although we do not have the block, but I have the ticket. - Jerry
 				// So I can send a ticket with higher level - Jerry
 				// Judge whether we have the tickets
-
+				queryCids := append(queryCids, entry.Cid)
 			}
 		}
 	}
 	if len(activeEntries) > 0 {
-		e.peerRequestQueue.PushBlock(p, activeEntries...)
+		if e.requestRecorder.IsFull() {
+			tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
+			activeTickets := append(activeTickets, tmptickets...)
+		}else{
+			e.peerRequestQueue.PushBlock(p, activeEntries...)
+		}
 	}
+
+	tmpticketsmap, err := e.ticketStore.GetReceivedTicket(queryCids)
+	if err != nil {
+		log.Error(err)
+	} else {
+		for _, t := range tmpticketsmap{
+			activeTickets := append(activeTickets, t)
+		}
+	}
+
+	// TODO: Judge whether it is necessary to add ticket to ticket store early so that we can judge send time more correctly
+	// TODO: add activeTickets to ticket sender and ticket store
 	for _, block := range m.Blocks() {
 		log.Debugf("got block %s %d bytes", block, len(block.RawData()))
 		l.ReceivedBytes(len(block.RawData()))

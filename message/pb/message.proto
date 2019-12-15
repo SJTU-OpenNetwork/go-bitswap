@@ -6,12 +6,12 @@ import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 //import "google/protobuf/timestamp.proto";
 
 message Ticket {
-  string publisher    = 1;
-  string sendTo       = 2;
-  string cid          = 3;
-  int64  byteSize     = 4;
-  int64  timeStamp    = 5;
-  State  state        = 6;
+  //string publisher    = 1;
+  string sendTo       = 1;
+  string cid          = 2;
+  int64  byteSize     = 3;
+  int64  timeStamp    = 4;
+  State  state        = 5;
   enum State {
     New    = 0;
     ACK    = 1;
