@@ -603,18 +603,25 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
 	// Receive Ticket Acks - Jerry 2019/12/14
 	acks := m.TicketAcks()
-	var ackMap map[cid.Cid] *tickets.TicketAck
-	var accepts []cid.Cid
-	for _, ack := range acks {
-		switch ack.Type  {
-		case TicketAck_ACCEPT:
-			accepts.append(ack.Cid)
-		case TicketAck_CANCEL:
-			e.ticketStore.RemoveTicket(ack)
+	var ackMap map[cid.Cid] tickets.TicketAck
+	var accepts, rejects []cid.Cid
+    var prepare []tickets.TicketAck
+
+    for _, ack := range acks {
+		switch ack.ACK()  {
+		case tickets.ACK_ACCEPT:
+			accepts = append(accepts, ack.Cid())
+		case tickets.ACK_CANCEL:
+            rejects = append(rejects, ack.Cid())
 		}
-		ackMap[ack.Cid] = &ack
+		ackMap[ack.Cid()] = ack
 	}
-	blockSizes := bsm.getBlockSizes(ctx, accepts)
+    // handle reject Acks
+    e.ticketStore.RemoveSendingTask(p, rejects)
+	e.ticketStore.RemoveTickets(p, rejects)
+
+    // handle accept Acks
+	blockSizes = e.bsm.getBlockSizes(ctx, accepts)
 	msgSize = 0
 	for _, c := range accepts {
 		blockSize, ok := blockSizes[c]
@@ -625,16 +632,17 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 				activeEntries = []peertask.Task{}
 				msgSize = 0
 			}
-			activeEntries = append(activeEntries, peertask.Task{Identifier: entry.Cid, Priority: entry.Priority})
+			activeEntries = append(activeEntries, peertask.Task{Identifier: ackMap[c].Cid(), Priority: 10})
 			msgSize += blockSize
 		} else {
 			// I don't have corresponding block
-			e.ticketStore.PrepareSending(ackMap[c])
+            prepare = append(prepare, ackMap[c])
 		}
 	}
 	if len(activeEntries) > 0 {
 		e.peerRequestQueue.PushBlock(p, activeEntries...)
 	}
+	e.ticketStore.PrepareSending(prepare)
 }
 
 func (e *Engine) addBlocks(ks []cid.Cid) {

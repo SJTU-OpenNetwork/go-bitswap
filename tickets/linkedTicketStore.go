@@ -149,3 +149,19 @@ func (s *linkedTicketStore) TicketNumber() int{
 func (s *linkedTicketStore) TicketSize() int64 {
 	return 0
 }
+
+func RemoveTickets(pid peer.ID, cid []cid.Cid) error {
+    return nil
+}
+
+func PrepareSending(acks []TicketAck) error {
+    return nil
+}
+
+func RemoveSendingTask(pid peer.ID, cid []cid.Cid) error {
+    return nil
+}
+
+func PopSendingTasks(cid []cid.Cid) ([]TicketAck, error) {
+    return nil, nil
+}
