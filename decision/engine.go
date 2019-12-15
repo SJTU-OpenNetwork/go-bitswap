@@ -163,7 +163,7 @@ type Engine struct {
 }
 
 // NewEngine creates a new block sending engine for the given block store
-func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger) *Engine {
+func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger, ts tickets.TicketStore) *Engine {
 	e := &Engine{
 		ledgerMap:       make(map[peer.ID]*ledger),
 		bsm:             newBlockstoreManager(ctx, bs, blockstoreWorkerCount),
@@ -180,6 +180,7 @@ func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger)
 			maxNumber:defaultRequestCapacity,
 			maxSize:defaultRequestSizeCapacity,
 		},
+        ticketStore:     ts,
 	}
 	e.tagQueued = fmt.Sprintf(tagFormat, "queued", uuid.New().String())
 	e.tagUseful = fmt.Sprintf(tagFormat, "useful", uuid.New().String())
@@ -612,6 +613,12 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
 	// Receive Ticket Acks - Jerry 2019/12/14
 	acks := m.TicketAcks()
+    if acks != nil {
+        e.handleTicketAcks(ctx, p, acks)
+    }
+}
+
+func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets.TicketAck) {
 	ackMap := make(map[cid.Cid] tickets.TicketAck)
 	accepts := make([]cid.Cid,0)
 	rejects := make([]cid.Cid,0)
@@ -631,8 +638,9 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 	e.ticketStore.RemoveTickets(p, rejects)
 
     // handle accept Acks
-	blockSizes = e.bsm.getBlockSizes(ctx, accepts)
-	msgSize = 0
+	var activeEntries []peertask.Task
+    blockSizes := e.bsm.getBlockSizes(ctx, accepts)
+    msgSize := 0
 	for _, c := range accepts {
 		blockSize, ok := blockSizes[c]
 		if ok {
