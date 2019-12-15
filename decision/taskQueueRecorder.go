@@ -1,6 +1,6 @@
 package decision
 
-import "github.com/ipfs/go-peertaskqueue/peertask"
+import "github.com/SJTU-OpenNetwork/go-peertaskqueue/peertask"
 
 
 type taskQueueRecorder struct{

@@ -14,8 +14,8 @@ import (
 	cid "github.com/ipfs/go-cid"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 	logging "github.com/ipfs/go-log"
-	"github.com/ipfs/go-peertaskqueue"
-	"github.com/ipfs/go-peertaskqueue/peertask"
+	"github.com/SJTU-OpenNetwork/go-peertaskqueue"
+	"github.com/SJTU-OpenNetwork/go-peertaskqueue/peertask"
 	process "github.com/jbenet/goprocess"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
