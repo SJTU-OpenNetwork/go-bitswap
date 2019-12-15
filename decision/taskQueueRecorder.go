@@ -23,6 +23,10 @@ func(t *taskQueueRecorder) BlockAddNumberOnly(taskNumber int){
 func(t *taskQueueRecorder) BlockPop(task *peertask.TaskBlock){
 	//task.Tasks
 	//blockNumber +=
+    if task == nil {
+        return
+    }
+
 	if t.blockNumber <= 0{
 		log.Error("pop when record counts 0 blocks")
 		return

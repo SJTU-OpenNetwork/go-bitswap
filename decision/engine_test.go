@@ -10,6 +10,7 @@ import (
 	"time"
 
 	message "github.com/SJTU-OpenNetwork/go-bitswap/message"
+	tickets "github.com/SJTU-OpenNetwork/go-bitswap/tickets"
 
 	blocks "github.com/ipfs/go-block-format"
 	ds "github.com/ipfs/go-datastore"
@@ -89,7 +90,8 @@ type engineSet struct {
 func newEngine(ctx context.Context, idStr string) engineSet {
 	fpt := &fakePeerTagger{}
 	bs := blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore()))
-	e := NewEngine(ctx, bs, fpt)
+    ts := tickets.NewLinkedTicketStore()
+	e := NewEngine(ctx, bs, fpt, ts)
 	e.StartWorkers(ctx, process.WithTeardown(func() error { return nil }))
 	return engineSet{
 		Peer: peer.ID(idStr),
@@ -176,7 +178,8 @@ func peerIsPartner(p peer.ID, e *Engine) bool {
 func TestOutboxClosedWhenEngineClosed(t *testing.T) {
 	ctx := context.Background()
 	t.SkipNow() // TODO implement *Engine.Close
-	e := NewEngine(ctx, blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore())), &fakePeerTagger{})
+    ts := tickets.NewLinkedTicketStore()
+	e := NewEngine(ctx, blockstore.NewBlockstore(dssync.MutexWrap(ds.NewMapDatastore())), &fakePeerTagger{}, ts)
 	e.StartWorkers(ctx, process.WithTeardown(func() error { return nil }))
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -232,10 +235,11 @@ func TestPartnerWantsThenCancels(t *testing.T) {
 		}
 	}
 
+    ts := tickets.NewLinkedTicketStore()
 	ctx := context.Background()
 	for i := 0; i < numRounds; i++ {
 		expected := make([][]string, 0, len(testcases))
-		e := NewEngine(ctx, bs, &fakePeerTagger{})
+		e := NewEngine(ctx, bs, &fakePeerTagger{}, ts)
 		e.StartWorkers(ctx, process.WithTeardown(func() error { return nil }))
 		for _, testcase := range testcases {
 			set := testcase[0]
