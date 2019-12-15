@@ -625,9 +625,31 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
 	// TODO: Judge whether it is necessary to add ticket to ticket store early so that we can judge send time more correctly
 	// TODO: add activeTickets to ticket sender and ticket store
+
+	//added by xuhui zhang
+	blockCids := make([]cid.Cid, 0)
+
 	for _, block := range m.Blocks() {
 		log.Debugf("got block %s %d bytes", block, len(block.RawData()))
 		l.ReceivedBytes(len(block.RawData()))
+		blockCids = append(blockCids, block.Cid())
+	}
+
+	ticketACKs, _ := e.ticketStore.PopSendingTasks(blockCids)
+	blockSizes = e.bsm.getBlockSizes(ctx, blockCids)
+	for index, ack := range ticketACKs {
+		blockSize, _ := blockSizes[blockCids[index]]
+		if msgSize + blockSize > maxMessageSize {
+			e.peerRequestQueue.PushBlock(ack.Receiver(), activeEntries...)
+			activeEntries = []peertask.Task{}
+			msgSize = 0
+		}
+		activeEntries = append(activeEntries, peertask.Task{Identifier:blockCids[index], Priority:10})
+		msgSize += blockSize
+	}
+	e.ticketStore.RemoveSendingTask(p, blockCids)
+	if len(activeEntries) > 0 {
+		e.peerRequestQueue.PushBlock(p, activeEntries...)
 	}
 
 	if m.Tickets() != nil {
