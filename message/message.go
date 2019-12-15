@@ -49,6 +49,7 @@ type BitSwapMessage interface {
 	AddBlock(blocks.Block)
 
 	AddTicket(tickets.Ticket)
+	AddTickets([]tickets.Ticket)
 
 	AddTicketAck(tickets.TicketAck)
 
@@ -228,6 +229,11 @@ func (m *impl) AddBlock(b blocks.Block) {
 //TODO add function AddTicket() - Jerry
 func (m *impl) AddTicket(t tickets.Ticket){
 	m.tickets[t.Cid()] = t;
+}
+func (m *impl) AddTickets(ts []tickets.Ticket){
+	for _, t := range ts{
+		m.AddTicket(t)
+	}
 }
 
 func (m *impl) AddTicketAck(ack tickets.TicketAck){

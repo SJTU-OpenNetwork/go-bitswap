@@ -57,6 +57,9 @@ var log = logging.Logger("engine")
 const (
 	// outboxChanBuffer must be 0 to prevent stale messages from being sent
 	outboxChanBuffer = 0
+
+	ticketOutboxChanBuffer = 10
+
 	// Number of concurrent workers that pull tasks off the request queue
 	taskWorkerCount = 8
 	// maxMessageSize is the maximum size of the batched payload
@@ -169,6 +172,7 @@ func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger,
 		bsm:             newBlockstoreManager(ctx, bs, blockstoreWorkerCount),
 		peerTagger:      peerTagger,
 		outbox:          make(chan (<-chan *Envelope), outboxChanBuffer),	//TODO: Why not make outbox buffered directly ??? - Riften
+		ticketOutbox:	 make(chan *Envelope, ticketOutboxChanBuffer),
 		workSignal:      make(chan struct{}, 1),
 		ticker:          time.NewTicker(time.Millisecond * 100),
 		taskWorkerCount: taskWorkerCount,
@@ -378,23 +382,6 @@ func (e *Engine) taskWorkerExit() {
 func (e *Engine) ticketWorker(ctx context.Context) {
 	//defer e.task
 	// defer e.taskWorkerExit()
-	for {
-		oneTimeUse := make(chan *Envelope, 1) // buffer to prevent blocking
-		select {
-		case <-ctx.Done():
-			return
-		case e.outbox <- oneTimeUse:
-		}
-		// receiver is ready for an outoing envelope. let's prepare one. first,
-		// we must acquire a task from the PQ...
-		envelope, err := e.nextTicketEnvelope(ctx)
-		if err != nil {
-			close(oneTimeUse)
-			return // ctx cancelled
-		}
-		oneTimeUse <- envelope // buffered. won't block
-		close(oneTimeUse)
-	}
 }
 
 
@@ -403,40 +390,63 @@ func (e *Engine) ticketWorkerExit() {
 
 }
 
+//TODO: channel may be blocked if there is too more tickets to send. Try to send it using some kind of queue
 //func (e )
+func (e *Engine) SendTickets(target peer.ID, tickets []tickets.Ticket) {
+	//1. Build Envelope
+	//Envelope:
+	//	- Peer: the target send ticket to
+	//	- Message: the message contains the tickets
+	//	- Sent: the call back func called when sending complete
+	//
+	//2. Send envelope to outbox
 
-func (e *Engine) nextTicketEnvelope(ctx context.Context) (*Envelope, error) {
-	for {
-		nextTask := e.ticketStore.PopTickets()
-		for nextTask == nil {
-			select{
-			case <- ctx.Done():
-				return nil, ctx.Err()
-			case <- e.ticketSignal:
-				nextTask = e.ticketStore.PopTickets()
-			}
-		}
-
-		msg := bsmsg.New(false)
-		for _, t := range nextTask.Tickets {
-			msg.AddTicket(t)
-		}
-		if msg.Empty() {
-			continue
-		}
-		return &Envelope{
-			Peer: nextTask.Target,
-			Message: msg,
-			Sent: func(){
-				select {
-				// Tell the taskworker
-				case e.workSignal <- struct{}{}:
-				default:
-				}
-			},
-		}, nil
+	msg := bsmsg.New(false)
+	msg.AddTickets(tickets)
+	if msg.Empty(){
+		return
 	}
+	envelope := &Envelope{
+		Peer:    target,
+		Message: msg,
+		Sent:    func(){
+			e.ticketStore.AddTickets(tickets)
+		},
+	}
+	e.ticketOutbox <- envelope
 }
+//func (e *Engine) nextTicketEnvelope(ctx context.Context) (*Envelope, error) {
+//	for {
+//		nextTask := e.ticketStore.PopTickets()
+//		for nextTask == nil {
+//			select{
+//			case <- ctx.Done():
+//				return nil, ctx.Err()
+//			case <- e.ticketSignal:
+//				nextTask = e.ticketStore.PopTickets()
+//			}
+//		}
+//
+//		msg := bsmsg.New(false)
+//		for _, t := range nextTask.Tickets {
+//			msg.AddTicket(t)
+//		}
+//		if msg.Empty() {
+//			continue
+//		}
+//		return &Envelope{
+//			Peer: nextTask.Target,
+//			Message: msg,
+//			Sent: func(){
+//				select {
+//				// Tell the taskworker
+//				case e.workSignal <- struct{}{}:
+//				default:
+//				}
+//			},
+//		}, nil
+//	}
+//}
 
 // nextEnvelope runs in the taskWorker goroutine. Returns an error if the
 // context is cancelled before the next Envelope can be created.
@@ -497,6 +507,10 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 // Outbox returns a channel of one-time use Envelope channels.
 func (e *Engine) Outbox() <-chan (<-chan *Envelope) {
 	return e.outbox
+}
+
+func (e *Engine) TicketOutbox() chan *Envelope{
+	return e.ticketOutbox
 }
 //
 //func (e *Engine) TicketOutbox() <-chan (<-chan *Envelope) {
@@ -587,7 +601,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 						//e.ticketStore.GetTickets()
 						//Create ticket
 						tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
-						activeTickets := append(activeTickets, tmptickets...)
+						activeTickets = append(activeTickets, tmptickets...)
 						// Add it to sender
 					} else {
 						e.peerRequestQueue.PushBlock(p, activeEntries...)
@@ -601,14 +615,14 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 				// although we do not have the block, but I have the ticket. - Jerry
 				// So I can send a ticket with higher level - Jerry
 				// Judge whether we have the tickets
-				queryCids := append(queryCids, entry.Cid)
+				queryCids = append(queryCids, entry.Cid)
 			}
 		}
 	}
 	if len(activeEntries) > 0 {
 		if e.requestRecorder.IsFull() {
 			tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
-			activeTickets := append(activeTickets, tmptickets...)
+			activeTickets = append(activeTickets, tmptickets...)
 		}else{
 			e.peerRequestQueue.PushBlock(p, activeEntries...)
 		}
@@ -619,7 +633,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		log.Error(err)
 	} else {
 		for _, t := range tmpticketsmap{
-			activeTickets := append(activeTickets, t)
+			activeTickets = append(activeTickets, t)
 		}
 	}
 

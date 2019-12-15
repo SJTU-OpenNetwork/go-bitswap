@@ -45,6 +45,9 @@ const(
 
 //var TicketAck_Type_value_name =
 
+type Loggable interface{
+	Loggable() map[string]interface{}
+}
 
 type Ticket interface {
 	//Publisher() peer.ID		// Needed because the ticket receiver should send ack to ticket sender
@@ -63,7 +66,8 @@ type Ticket interface {
 	//Signature String
 	ToProto() *pb.Ticket
 
-	Loggable() map[string]interface{}
+	Loggable
+	//Loggable() map[string]interface{}
 }
 
 type TicketAck interface {
@@ -77,7 +81,8 @@ type TicketAck interface {
 	ACK() int32
 	ToProto() *pb.TicketAck
 
-	Loggable() map[string]interface{}
+	//Loggable() map[string]interface{}
+	Loggable
 }
 
 // TODO: Is it possible that the timestamps of received ticket and sent ticket are different? Is that matters? - Riften
