@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
 	wl "github.com/SJTU-OpenNetwork/go-bitswap/wantlist"
+	"github.com/google/uuid"
 	cid "github.com/ipfs/go-cid"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 	logging "github.com/ipfs/go-log"
@@ -567,7 +567,10 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 				newWorkExists = true
 				if msgSize+blockSize > maxMessageSize {
 					if(e.requestRecorder.IsFull()){	//We do not have enough network resources. Send tickets instead of send the block
-						//e.ticket
+						//e.ticketStore.GetTickets()
+						//Create ticket
+						//add to ticketstore
+						//add to sender
 					} else {
 						e.peerRequestQueue.PushBlock(p, activeEntries...)
 					}
@@ -603,9 +606,10 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
 	// Receive Ticket Acks - Jerry 2019/12/14
 	acks := m.TicketAcks()
-	var ackMap map[cid.Cid] tickets.TicketAck
-	var accepts, rejects []cid.Cid
-    var prepare []tickets.TicketAck
+	ackMap := make(map[cid.Cid] tickets.TicketAck)
+	accepts := make([]cid.Cid,0)
+	rejects := make([]cid.Cid,0)
+	prepare := make([]tickets.TicketAck,0)
 
     for _, ack := range acks {
 		switch ack.ACK()  {
