@@ -10,6 +10,7 @@ import (
 )
 
 var log = logging.Logger("hon.linkedTicketStore")
+var SendingListTypeError = fmt.Errorf("Elements in prapareSendingList is not TicketAck")
 
 type NotInitializeError struct{}
 func (e *NotInitializeError) Error() string{
@@ -36,6 +37,8 @@ type linkedTicketStore struct{
 	dataStore map[cid.Cid] *list.List
 	dataTracker map[cid.Cid]map[peer.ID] *list.Element
 	storeType int32
+
+    prepareSendingList *list.List
 }
 
 func NewLinkedSendTicketStore(creater peer.ID) *linkedTicketStore{
@@ -44,6 +47,8 @@ func NewLinkedSendTicketStore(creater peer.ID) *linkedTicketStore{
 		dataStore: make(map[cid.Cid]*list.List),
 		dataTracker: make(map[cid.Cid]map[peer.ID]*list.Element),
 		storeType: STORE_SEND,
+
+        prepareSendingList: list.New(),
 	}
 }
 
@@ -150,18 +155,69 @@ func (s *linkedTicketStore) TicketSize() int64 {
 	return 0
 }
 
-func RemoveTickets(pid peer.ID, cid []cid.Cid) error {
+func (s *linkedTicketStore) RemoveTickets(pid peer.ID, cid []cid.Cid) error {
     return nil
 }
 
-func PrepareSending(acks []TicketAck) error {
+func (s *linkedTicketStore) PrepareSending(acks []TicketAck) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+    for _, ack := range acks {
+        s.prepareSendingList.PushBack(ack)
+    }
     return nil
 }
 
-func RemoveSendingTask(pid peer.ID, cid []cid.Cid) error {
+func (s *linkedTicketStore) RemoveSendingTask(pid peer.ID, cids []cid.Cid) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+    cur := s.prepareSendingList.Front()
+    for cur != nil {
+        ack, ok := cur.Value.(TicketAck)
+        if !ok {
+            return SendingListTypeError
+        }
+        if ack.Receiver() == pid {
+            for _, cid := range cids {
+                if ack.Cid() == cid {
+                    tmp := cur
+                    cur = cur.Next()
+                    s.prepareSendingList.Remove(tmp)
+                    goto NEXT
+                }
+            }
+        }
+        cur = cur.Next()
+        NEXT:
+    }
     return nil
 }
 
-func PopSendingTasks(cid []cid.Cid) ([]TicketAck, error) {
-    return nil, nil
+func (s *linkedTicketStore) PopSendingTasks(cids []cid.Cid) ([]TicketAck, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+    var tasks []TicketAck
+    cur := s.prepareSendingList.Front()
+    for cur != nil {
+        ack, ok := cur.Value.(TicketAck)
+        if !ok {
+            return tasks, SendingListTypeError
+        }
+        for _, cid := range cids {
+            if ack.Cid() == cid {
+                tmp := cur
+                cur = cur.Next()
+                tasks = append(tasks, ack)
+                s.prepareSendingList.Remove(tmp)
+                goto NEXT
+            }
+        }
+        cur = cur.Next()
+        NEXT:
+    }
+
+    return tasks, nil
 }
