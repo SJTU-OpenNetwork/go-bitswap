@@ -587,7 +587,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 						//e.ticketStore.GetTickets()
 						//Create ticket
 						tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
-						activeTickets := append(activeTickets, tmptickets...)
+						activeTickets = append(activeTickets, tmptickets...)
 						// Add it to sender
 					} else {
 						e.peerRequestQueue.PushBlock(p, activeEntries...)
@@ -601,14 +601,14 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 				// although we do not have the block, but I have the ticket. - Jerry
 				// So I can send a ticket with higher level - Jerry
 				// Judge whether we have the tickets
-				queryCids := append(queryCids, entry.Cid)
+				queryCids = append(queryCids, entry.Cid)
 			}
 		}
 	}
 	if len(activeEntries) > 0 {
 		if e.requestRecorder.IsFull() {
 			tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
-			activeTickets := append(activeTickets, tmptickets...)
+			activeTickets = append(activeTickets, tmptickets...)
 		}else{
 			e.peerRequestQueue.PushBlock(p, activeEntries...)
 		}
@@ -619,7 +619,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		log.Error(err)
 	} else {
 		for _, t := range tmpticketsmap{
-			activeTickets := append(activeTickets, t)
+			activeTickets = append(activeTickets, t)
 		}
 	}
 

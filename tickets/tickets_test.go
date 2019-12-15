@@ -9,25 +9,14 @@ import (
 	peertest "github.com/libp2p/go-libp2p-core/test"
 	mh "github.com/multiformats/go-multihash"
 	"testing"
+
+	"encoding/json"
 )
 
 func makeRandomCid() cid.Cid {
 	p := make([]byte, 256)
 	rand.Read(p)
-	/*
-	if err != nil {
-		//t.Fatal(err)
-		return nil
-	}
-	*/
-
 	h, _ := mh.Sum(p, mh.SHA3, 4)
-	/*
-	if err != nil {
-		t.Fatal(err)
-	}
-	*/
-
 	cid := cid.NewCidV1(7, h)
 	return cid
 }
@@ -38,6 +27,15 @@ func mkFakeCid(s string) cid.Cid {
 
 func mkFakePid() (peer.ID, error){
 	return peertest.RandPeerID()
+}
+
+func loggable2json(loginfo Loggable) string {
+	jsonString, err := json.MarshalIndent(loginfo.Loggable(), "", "\t")
+	if err != nil{
+		log.Error(err)
+		return ""
+	}
+	return string(jsonString)
 }
 
 var peer1 peer.ID
@@ -55,7 +53,7 @@ func init(){
 }
 
 func TestBasicTicket(t *testing.T) {
-	ticket1 := CreateBasicTicket(peer1, peer2, cids[0], 1024)
+	ticket1 := CreateBasicTicket(peer2, cids[0], 1024)
 
 	t.Logf("Create ticket:\n%s", ticket1.BasicInfo())
 
@@ -85,7 +83,7 @@ func TestBasicTicket(t *testing.T) {
 
 func TestBasicTicketAck(t *testing.T) {
 	ticketack1 := CreateBasicTicketAck(peer1, peer2, cids[0], 0)
-	t.Log("Create ticket ack:\n", ticketack1.Loggable())
+	t.Log("Create ticket ack:\n", loggable2json(ticketack1))
 
 	ticketack1proto := ticketack1.ToProto()
 	t.Log("Generate proto:\n", ticketack1proto)
@@ -96,4 +94,8 @@ func TestBasicTicketAck(t *testing.T) {
 	ticketack1resume, _ := NewBasicTicketAck(&ticketack1protoresume)
 
 	t.Log("Marshal and Unmarshal ack:\n", ticketack1resume.Loggable())
+}
+
+func TestLinkedTicketStore(t *testing.T) {
+
 }

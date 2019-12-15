@@ -33,7 +33,7 @@ func (e *InvalidPublisherError) Error() string{
 // TODO: Make linkedTicketStore support both send and recv ticket
 type linkedTicketStore struct{
 	mutex sync.Mutex
-	creater peer.ID
+	//creater peer.ID
 	dataStore map[cid.Cid] *list.List
 	dataTracker map[cid.Cid]map[peer.ID] *list.Element
 	storeType int32
@@ -54,17 +54,17 @@ func NewLinkedTicketStore() *linkedTicketStore{
 }
 
 // deprecated
-func NewLinkedTicketStore(creater peer.ID) *linkedTicketStore{
-	return &linkedTicketStore{
-		creater: creater,
-		dataStore: make(map[cid.Cid]*list.List),
-		dataTracker: make(map[cid.Cid]map[peer.ID]*list.Element),
-		storeType: STORE_SEND,
-
-        prepareSendingList: list.New(),
-        receivedTickets: make(map[cid.Cid] Ticket),
-	}
-}
+//func NewLinkedTicketStore(creater peer.ID) *linkedTicketStore{
+//	return &linkedTicketStore{
+//		creater: creater,
+//		dataStore: make(map[cid.Cid]*list.List),
+//		dataTracker: make(map[cid.Cid]map[peer.ID]*list.Element),
+//		storeType: STORE_SEND,
+//
+//        prepareSendingList: list.New(),
+//        receivedTickets: make(map[cid.Cid] Ticket),
+//	}
+//}
 
 // deprecated
 //func NewLinkedRecvTicketStore(creater peer.ID) *linkedTicketStore{
