@@ -52,7 +52,7 @@ type BitSwapMessage interface {
 	AddTickets([]tickets.Ticket)
 
 	AddTicketAck(tickets.TicketAck)
-
+	AddTicketAcks([]tickets.TicketAck)
 	Exportable
 
 	Loggable() map[string]interface{}
@@ -238,6 +238,12 @@ func (m *impl) AddTickets(ts []tickets.Ticket){
 
 func (m *impl) AddTicketAck(ack tickets.TicketAck){
 	m.ticketAcks[ack.Cid()] = ack
+}
+
+func (m *impl) AddTicketAcks(acks []tickets.TicketAck){
+	for _, ack := range acks{
+		m.AddTicketAck(ack)
+	}
 }
 
 // FromNet generates a new BitswapMessage from incoming data on an io.Reader.

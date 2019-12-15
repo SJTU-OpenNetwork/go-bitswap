@@ -59,6 +59,7 @@ const (
 	outboxChanBuffer = 0
 
 	ticketOutboxChanBuffer = 10
+	ticketAckOutboxChanBuffer = 10
 
 	// Number of concurrent workers that pull tasks off the request queue
 	taskWorkerCount = 8
@@ -148,6 +149,7 @@ type Engine struct {
 
 	// TODO: ticketOutbox contains outgoing messages (tickets or ticket acks) to peers. - Jerry
 	ticketOutbox chan *Envelope
+	ticketAckOutbox chan *Envelope
 
 	bsm *blockstoreManager
 
@@ -173,6 +175,7 @@ func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger,
 		peerTagger:      peerTagger,
 		outbox:          make(chan (<-chan *Envelope), outboxChanBuffer),	//TODO: Why not make outbox buffered directly ??? - Riften
 		ticketOutbox:	 make(chan *Envelope, ticketOutboxChanBuffer),
+		ticketAckOutbox: make(chan *Envelope, ticketAckOutboxChanBuffer),
 		workSignal:      make(chan struct{}, 1),
 		ticker:          time.NewTicker(time.Millisecond * 100),
 		taskWorkerCount: taskWorkerCount,
@@ -415,6 +418,23 @@ func (e *Engine) SendTickets(target peer.ID, tickets []tickets.Ticket) {
 	}
 	e.ticketOutbox <- envelope
 }
+
+func (e *Engine) SendTicketAcks(target peer.ID, ticketAcks []tickets.TicketAck) {
+	msg := bsmsg.New(false)
+	msg.AddTicketAcks(ticketAcks)
+	if msg.Empty(){
+		return
+	}
+	envelope := &Envelope{
+		Peer:	target,
+		Message: msg,
+		Sent:	func(){
+			//TODO: Whether we need to store the acks sent??
+			//		Do nothing for now.
+		},
+	}
+	e.ticketAckOutbox <- envelope
+}
 //func (e *Engine) nextTicketEnvelope(ctx context.Context) (*Envelope, error) {
 //	for {
 //		nextTask := e.ticketStore.PopTickets()
@@ -512,6 +532,11 @@ func (e *Engine) Outbox() <-chan (<-chan *Envelope) {
 func (e *Engine) TicketOutbox() chan *Envelope{
 	return e.ticketOutbox
 }
+
+func (e *Engine) TicketAckOutbox() chan *Envelope{
+	return e.ticketAckOutbox
+}
+
 //
 //func (e *Engine) TicketOutbox() <-chan (<-chan *Envelope) {
 //	return e.ticketOutbox

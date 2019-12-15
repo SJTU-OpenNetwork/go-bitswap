@@ -58,7 +58,9 @@ func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
 		select {
 		case ticketEnvelope := <- bs.engine.TicketOutbox():
 			//bs.network.SendMessage(ticketEnvelope.Peer, )
-			bs.sendTickets(ctx, ticketEnvelope)
+			bs.sendTicketsOrAck(ctx, ticketEnvelope)
+		case ticketAckEnvelope := <- bs.engine.TicketAckOutbox():
+			bs.sendTicketsOrAck(ctx, ticketAckEnvelope)
 		case nextEnvelope := <-bs.engine.Outbox():
 			select {
 			case envelope, ok := <-nextEnvelope:
@@ -159,13 +161,16 @@ func (bs *Bitswap) sendBlocks(ctx context.Context, env *engine.Envelope) {
 	}
 }
 
-func (bs *Bitswap) sendTickets(ctx context.Context, env *engine.Envelope) {
+func (bs *Bitswap) sendTicketsOrAck(ctx context.Context, env *engine.Envelope) {
 	defer env.Sent()
 	err := bs.network.SendMessage(ctx, env.Peer, env.Message)
 	if err != nil{
 		log.Infof("sendTickets errorL %s", err)
 	}
 }
+
+//func (bs *Bitswap) sendTicketAcks()
+
 
 func (bs *Bitswap) provideWorker(px process.Process) {
 	// FIXME: OnClosingContext returns a _custom_ context type.
