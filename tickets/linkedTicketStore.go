@@ -62,19 +62,6 @@ func NewLinkedTicketStore() *linkedTicketStore{
 }
 
 // deprecated
-func NewLinkedTicketStore(creater peer.ID) *linkedTicketStore{
-	return &linkedTicketStore{
-		creater: creater,
-		dataStore: make(map[cid.Cid]*list.List),
-		dataTracker: make(map[cid.Cid]map[peer.ID]*list.Element),
-		storeType: STORE_SEND,
-
-        prepareSendingList: list.New(),
-        receivedTickets: make(map[cid.Cid] Ticket),
-	}
-}
-
-// deprecated
 //func NewLinkedRecvTicketStore(creater peer.ID) *linkedTicketStore{
 //	return &linkedTicketStore{
 //		creater: creater,

@@ -522,7 +522,7 @@ func createTicketsFromEntry(target peer.ID, tasks []peertask.Task, blockSizes ma
 		ticketSize, ok := blockSizes[task.Identifier.(cid.Cid)]
 		if ok {
 			ticket := tickets.CreateBasicTicket(target, task.Identifier.(cid.Cid), int64(ticketSize))
-			res := append(res, ticket)
+			res = append(res, ticket)
 		} else {
 			log.Error("Can not get block sizes when create ticket")
 		}
@@ -626,45 +626,78 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 	// TODO: Judge whether it is necessary to add ticket to ticket store early so that we can judge send time more correctly
 	// TODO: add activeTickets to ticket sender and ticket store
 
-	//added by xuhui zhang
+	// Receive blocks
 	blockCids := make([]cid.Cid, 0)
-
 	for _, block := range m.Blocks() {
 		log.Debugf("got block %s %d bytes", block, len(block.RawData()))
 		l.ReceivedBytes(len(block.RawData()))
 		blockCids = append(blockCids, block.Cid())
 	}
 
-	ticketACKs, _ := e.ticketStore.PopSendingTasks(blockCids)
-	blockSizes = e.bsm.getBlockSizes(ctx, blockCids)
-	for index, ack := range ticketACKs {
-		blockSize, _ := blockSizes[blockCids[index]]
-		if msgSize + blockSize > maxMessageSize {
-			e.peerRequestQueue.PushBlock(ack.Receiver(), activeEntries...)
-			activeEntries = []peertask.Task{}
-			msgSize = 0
-		}
-		activeEntries = append(activeEntries, peertask.Task{Identifier:blockCids[index], Priority:10})
-		msgSize += blockSize
-	}
-	e.ticketStore.RemoveSendingTask(p, blockCids)
-	if len(activeEntries) > 0 {
-		e.peerRequestQueue.PushBlock(p, activeEntries...)
-	}
-
+    // Receive tickets
 	if m.Tickets() != nil {
-		// TODO: handle tickets and ticket acks - Jerry
-		// More specifically, if the ticket is better, keep that ticket
-		// and abandon the previous ticket. Otherwise, reject the ticket.
-		// Both conditions should send a ack. 
-		// After receiving a ack, put the block into the send queue or 
-		// remove it from the send queue.
+		e.handleTickets(ctx, m.Tickets())
 	}
 
 	// Receive Ticket Acks - Jerry 2019/12/14
 	acks := m.TicketAcks()
     if acks != nil {
         e.handleTicketAcks(ctx, p, acks)
+    }
+}
+
+//func (e *Engine) handleReceiveBlocks(cids []cid.Cid) {
+//	acks, _ := e.ticketStore.PopSendingTasks(cids)
+//	var activeEntries []peertask.Task
+//    msgSize := 0
+//	for index, ack := range acks {
+//		blockSize, _ := ack.Size()
+//		if msgSize + blockSize > maxMessageSize {
+//			e.peerRequestQueue.PushBlock(ack.Receiver(), activeEntries...)
+//			activeEntries = []peertask.Task{}
+//			msgSize = 0
+//		}
+//		activeEntries = append(activeEntries, peertask.Task{Identifier:cids[index], Priority:10})
+//		msgSize += blockSize
+//	}
+//	if len(activeEntries) > 0 {
+//		e.peerRequestQueue.PushBlock(p, activeEntries...)
+//	}
+//}
+
+func (e *Engine) handleTickets(ctx context.Context, tks []tickets.Ticket) {
+	var cids, noblocks []cid.Cid
+	ticketMap := make(map[cid.Cid] tickets.Ticket)
+    var rejects, accepts []tickets.Ticket
+
+    for _, ticket := range tks {
+        cids = append(cids, ticket.Cid())
+        ticketMap[ticket.Cid()] = ticket
+    }
+    blockSizes := e.bsm.getBlockSizes(ctx, cids)
+    for _, cid := range cids {
+        _, ok := blockSizes[cid]
+        if ok {
+            rejects = append(rejects, ticketMap[cid])
+        } else {
+            noblocks = append(noblocks, cid)
+        }
+    }
+
+    localMap, _ := e.ticketStore.GetReceivedTicket(noblocks)
+    for _, cid := range noblocks {
+        local, ok := localMap[cid]
+        nt := ticketMap[cid]
+        if ok {
+            if local.Level() <= nt.Level() {
+                rejects = append(rejects, nt)
+            } else {
+                rejects = append(rejects, local)
+                accepts = append(accepts, nt)
+            }
+        } else {
+            accepts = append(accepts, nt)
+        }
     }
 }
 
@@ -728,6 +761,16 @@ func (e *Engine) addBlocks(ks []cid.Cid) {
 			}
 		}
 		l.lk.Unlock()
+	}
+
+    // send blocks if there is tickets
+	acks, _ := e.ticketStore.PopSendingTasks(ks)
+	for _, ack := range acks {
+		e.peerRequestQueue.PushBlock(ack.Receiver(), peertask.Task{
+            Identifier: ack.Cid(),
+            Priority: 10000, // how to set the priority?
+        })
+        work = true
 	}
 
 	if work {
