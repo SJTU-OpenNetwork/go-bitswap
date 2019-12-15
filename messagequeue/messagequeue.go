@@ -8,6 +8,7 @@ import (
 	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
 	bsnet "github.com/SJTU-OpenNetwork/go-bitswap/network"
 	wantlist "github.com/SJTU-OpenNetwork/go-bitswap/wantlist"
+	//tickets "github.com/SJTU-OpenNetwork/go-bitswap/tickets"
 	logging "github.com/ipfs/go-log"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
@@ -68,6 +69,26 @@ func (mq *MessageQueue) AddMessage(entries []bsmsg.Entry, ses uint64) {
 	default:
 	}
 }
+
+// AddTickets adds new tickets to an outgoing message for a given session.
+//func (mq *MessageQueue) AddTicketMessage(tickets []tickets.Ticket, ses uint64) {
+//	mq.addTickets(tickets, ses)
+//
+//    select {
+//	case mq.outgoingWork <- struct{}{}:
+//	default:
+//	}
+//}
+
+// AddTickets adds new tickets to an outgoing message for a given session.
+//func (mq *MessageQueue) AddTicketAckMessage(acks []tickets.TicketAck, ses uint64) {
+//	mq.addTicketAcks(acks, ses)
+//
+//    select {
+//	case mq.outgoingWork <- struct{}{}:
+//	default:
+//	}
+//}
 
 // AddWantlist adds a complete session tracked want list to a message queue
 func (mq *MessageQueue) AddWantlist(initialWants *wantlist.SessionTrackedWantlist) {
@@ -171,6 +192,32 @@ func (mq *MessageQueue) addEntries(entries []bsmsg.Entry, ses uint64) bool {
 	}
 	return work
 }
+
+//func (mq *MessageQueue) addTickets(tickets []tickets.Ticket, ses uint64) {
+//	mq.nextMessageLk.Lock()
+//	defer mq.nextMessageLk.Unlock()
+//	// if we have no message held allocate a new one
+//	if mq.nextMessage == nil {
+//		mq.nextMessage = bsmsg.New(false)
+//	}
+//
+//	for _, t := range tickets {
+//		mq.nextMessage.AddTicket(t)
+//	}
+//}
+
+//func (mq *MessageQueue) addTicketAcks(acks []tickets.TicketAck, ses uint64) {
+//	mq.nextMessageLk.Lock()
+//	defer mq.nextMessageLk.Unlock()
+//	// if we have no message held allocate a new one
+//	if mq.nextMessage == nil {
+//		mq.nextMessage = bsmsg.New(false)
+//	}
+//
+//	for _, ack := range acks {
+//		mq.nextMessage.AddTicketAck(ack)
+//	}
+//}
 
 func (mq *MessageQueue) extractOutgoingMessage() bsmsg.BitSwapMessage {
 	// grab outgoing message

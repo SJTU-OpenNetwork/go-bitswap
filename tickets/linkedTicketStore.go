@@ -27,6 +27,12 @@ func (e *InvalidPublisherError) Error() string{
 		"Ticket Publisher: %s", e.creater.String(), e.publisher.String());
 }
 
+
+//type PeerHandler interface {
+//	SendTicketMessage(entries []Ticket, targets []peer.ID, from uint64)
+//	SendTicketAckMessage(entries []TicketAck, targets []peer.ID, from uint64)
+//}
+
 // linked Ticket Store implement the ticketStore interface.
 // It uses linked list as the based data structure and further builds tracker on it.
 // Add, Remove, Select, Modify will be done within O(1) time complexity
@@ -40,6 +46,7 @@ type linkedTicketStore struct{
 
     prepareSendingList *list.List
     receivedTickets map[cid.Cid] Ticket
+    //peerManager PeerHandler
 }
 
 func NewLinkedTicketStore() *linkedTicketStore{
@@ -50,6 +57,7 @@ func NewLinkedTicketStore() *linkedTicketStore{
 
         prepareSendingList: list.New(),
         receivedTickets: make(map[cid.Cid] Ticket),
+        //peerManager: pm,
 	}
 }
 
@@ -260,4 +268,12 @@ func (s *linkedTicketStore) GetReceivedTicket(cids []cid.Cid) (map[cid.Cid] Tick
         }
     }
     return ticketMap, nil
+}
+
+func (s *linkedTicketStore) SendTickets(pid peer.ID, tickets []Ticket)  {
+
+}
+
+func (s *linkedTicketStore) SendTicketAcks(pid peer.ID, acks []TicketAck) {
+
 }

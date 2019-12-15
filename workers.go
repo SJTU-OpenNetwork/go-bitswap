@@ -41,10 +41,13 @@ func (bs *Bitswap) startWorkers(ctx context.Context, px process.Process) {
 		px.Go(bs.provideWorker)
 	}
 
-	// TODO: start ticketWorker - Jerry
-	for i := 0; i < TicketWorkerCount; i++ {
-
-	}
+	// TODO: start ticketWorker - Jerry deprecated
+	//for i := 0; i < TicketWorkerCount; i++ {
+	//	i := i
+	//	px.Go(func(px process.Process) {
+	//		bs.ticketWorker(ctx, i)
+	//	})
+	//}
 }
 
 func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
@@ -93,42 +96,45 @@ func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
 
 
 // TODO: ticketWorker is used to send ticket or ticket ack - Jerry
-func (bs *Bitswap) ticketWorker(ctx context.Context, id int) {
-	for {
-		select{
-		//case nextEnve
-		}
-	}
-}
+//func (bs *Bitswap) ticketWorker(ctx context.Context, id int) {
+//	idmap := logging.LoggableMap{"ID": id}
+//	defer log.Debug("bitswap ticket worker shutting down...")
+//	for {
+//		log.Event(ctx, "Bitswap.TicketWorker.Loop", idmap)
+//		select{
+//		//case nextEnve
+//		}
+//	}
+//}
 
 // TODO: add sendTicket - Jerry
-func (bs *Bitswap) sendTicket(ctx context.Context, env *engine.Envelope) {
-	defer env.Sent()
-
-	msg := bsmsg.New(false)
-	for _, ticket := range env.Message.Tickets(){
-		msg.AddTicket(ticket)
-	}
-	err := bs.network.SendMessage(ctx, env.Peer, msg)
-	if err != nil {
-		log.Infof("sendticket error :%s", err)
-	}
-}
-
-// TODO: add sendTicketAck - Jerry
-func (bs *Bitswap) sendTicketAck(ctx context.Context, env *engine.Envelope) {
-	defer env.Sent()
-
-	msg := bsmsg.New(false)
-	for _, ack := range env.Message.TicketAcks(){
-		msg.AddTicketAck(ack)
-	}
-	err := bs.network.SendMessage(ctx, env.Peer, msg)
-	if err != nil {
-		log.Infof("sendticketack error :%s", err)
-	}
-
-}
+//func (bs *Bitswap) sendTicket(ctx context.Context, env *engine.Envelope) {
+//	defer env.Sent()
+//
+//	msg := bsmsg.New(false)
+//	for _, ticket := range env.Message.Tickets(){
+//		msg.AddTicket(ticket)
+//	}
+//	err := bs.network.SendMessage(ctx, env.Peer, msg)
+//	if err != nil {
+//		log.Infof("sendticket error :%s", err)
+//	}
+//}
+//
+//// TODO: add sendTicketAck - Jerry
+//func (bs *Bitswap) sendTicketAck(ctx context.Context, env *engine.Envelope) {
+//	defer env.Sent()
+//
+//	msg := bsmsg.New(false)
+//	for _, ack := range env.Message.TicketAcks(){
+//		msg.AddTicketAck(ack)
+//	}
+//	err := bs.network.SendMessage(ctx, env.Peer, msg)
+//	if err != nil {
+//		log.Infof("sendticketack error :%s", err)
+//	}
+//
+//}
 
 func (bs *Bitswap) sendBlocks(ctx context.Context, env *engine.Envelope) {
 	// Blocks need to be sent synchronously to maintain proper backpressure
