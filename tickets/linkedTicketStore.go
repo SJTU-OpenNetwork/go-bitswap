@@ -74,7 +74,6 @@ func NewLinkedTicketStore() *linkedTicketStore{
 //	}
 //}
 
-// deprecated
 //func NewLinkedRecvTicketStore(creater peer.ID) *linkedTicketStore{
 //	return &linkedTicketStore{
 //		creater: creater,

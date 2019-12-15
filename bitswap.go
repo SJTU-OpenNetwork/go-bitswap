@@ -335,7 +335,7 @@ func (bs *Bitswap) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []b
 
 	// Send all block keys (including duplicates) to any sessions that want them.
 	// (The duplicates are needed by sessions for accounting purposes)
-	bs.sm.ReceiveFrom(from, allKs)
+	bs.sm.ReceiveFrom(from, allKs) // do I still need this????? by Jerry
 
 	// Send wanted block keys to decision engine
 	bs.engine.AddBlocks(wantedKs)
