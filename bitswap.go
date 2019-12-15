@@ -114,7 +114,8 @@ func New(parent context.Context, network bsnet.BitSwapNetwork,
 		return bsmq.New(ctx, p, network)
 	}
 
-	wm := bswm.New(ctx, bspm.New(ctx, peerQueueFactory))
+    pm := bspm.New(ctx, peerQueueFactory)
+	wm := bswm.New(ctx, pm)
 	pqm := bspqm.New(ctx, network)
 
 	sessionFactory := func(ctx context.Context, id uint64, pm bssession.PeerManager, srs bssession.RequestSplitter,

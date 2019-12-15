@@ -43,4 +43,8 @@ type TicketStore interface{
     // Interfaces for receving tickets - Add by Jerry
     StoreReceivedTickets(tickets []Ticket) error
     GetReceivedTicket(cids []cid.Cid) (map[cid.Cid] Ticket, error)
+
+    // Interfaces for sending tickets and ticketAcks - Add by Jerry
+    SendTickets(pid peer.ID, tickets []Ticket)
+    SendTicketAcks(pid peer.ID, acks []TicketAck)
 }
