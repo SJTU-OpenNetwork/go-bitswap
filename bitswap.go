@@ -338,7 +338,7 @@ func (bs *Bitswap) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []b
 	bs.sm.ReceiveFrom(from, allKs) // do I still need this????? by Jerry
 
 	// Send wanted block keys to decision engine
-	bs.engine.AddBlocks(wantedKs)
+	bs.engine.AddBlocks(ctx, wantedKs)
 
 	// Publish the block to any Bitswap clients that had requested blocks.
 	// (the sessions use this pubsub mechanism to inform clients of received

@@ -93,7 +93,7 @@ func TestBasicTicketAck(t *testing.T) {
 	ticketack1protoresume.Unmarshal(ticketack1byte)
 	ticketack1resume, _ := NewBasicTicketAck(&ticketack1protoresume)
 
-	t.Log("Marshal and Unmarshal ack:\n", ticketack1resume.Loggable())
+	t.Log("Marshal and Unmarshal ack:\n", loggable2json(ticketack1resume))
 }
 
 func TestLinkedTicketStore(t *testing.T) {

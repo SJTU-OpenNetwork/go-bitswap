@@ -92,6 +92,7 @@ const (
 
 	defaultRequestCapacity = 128
 	defaultRequestSizeCapacity = 128 * 512 * 1024
+	defaultBlockSize = 512
 )
 
 var (
@@ -114,6 +115,11 @@ type Envelope struct {
 	Sent func()
 }
 
+func getCurrentTimestamp() int64{
+	return time.Now().UnixNano() / (int64(time.Millisecond)/int64(time.Nanosecond))
+}
+
+
 // PeerTagger covers the methods on the connection manager used by the decision
 // engine to tag peers
 type PeerTagger interface {
@@ -122,7 +128,6 @@ type PeerTagger interface {
 }
 
 // Engine manages sending requested blocks to peers.
-// TODO: sending blocks and tickets - Jerry
 type Engine struct {
 	// peerRequestQueue is a priority queue of requests received from peers.
 	// Requests are popped from the queue, packaged up, and placed in the
@@ -147,7 +152,6 @@ type Engine struct {
 	// taskWorker goroutine
 	outbox chan (<-chan *Envelope)
 
-	// TODO: ticketOutbox contains outgoing messages (tickets or ticket acks) to peers. - Jerry
 	ticketOutbox chan *Envelope
 	ticketAckOutbox chan *Envelope
 
@@ -179,7 +183,6 @@ func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger,
 		workSignal:      make(chan struct{}, 1),
 		ticker:          time.NewTicker(time.Millisecond * 100),
 		taskWorkerCount: taskWorkerCount,
-		// TODO: add ticketOutbox - Jerry They can share the same outbox - Riften
 		// ticketOutbox: 	 make(chan (<-chan *Envelope), outboxChanBuffer),
 		requestRecorder: &taskQueueRecorder{
 			blockNumber: 0,
@@ -199,7 +202,6 @@ func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger,
 }
 
 // Start up workers to handle requests from other nodes for the data on this node
-// TODO: Start ticketWorkers - Riften
 func (e *Engine) StartWorkers(ctx context.Context, px process.Process) {
 	// Start up blockstore manager
 	e.bsm.start(px)
@@ -377,24 +379,16 @@ func (e *Engine) taskWorkerExit() {
 	}
 }
 
-// TODO: add ticketWorker - sending tickets cannot use the same thread as normal messages - Jerry
-// - Get ticket out of sendTicketStore
-// - Pack it into envelop
-// - put it to outbox
-// For now it runs simultaneously with taskWorker and share the same outbox
-func (e *Engine) ticketWorker(ctx context.Context) {
-	//defer e.task
-	// defer e.taskWorkerExit()
-}
 
-
-// TODO: add ticketWorkerExit - Jerry
-func (e *Engine) ticketWorkerExit() {
-
-}
 
 //TODO: channel may be blocked if there is too more tickets to send. Try to send it using some kind of queue
 //func (e )
+
+func (e *Engine) getTimeStamp() int64{
+	baseTime := time.Now().UnixNano() / (int64(time.Millisecond)/int64(time.Nanosecond))
+	return baseTime + e.requestRecorder.PredictTime() + e.ticketStore.PredictTime()
+}
+
 func (e *Engine) SendTickets(target peer.ID, tickets []tickets.Ticket) {
 	//1. Build Envelope
 	//Envelope:
@@ -403,6 +397,10 @@ func (e *Engine) SendTickets(target peer.ID, tickets []tickets.Ticket) {
 	//	- Sent: the call back func called when sending complete
 	//
 	//2. Send envelope to outbox
+	timeStamp := e.getTimeStamp()
+	for _, t := range(tickets){
+		t.SetTimeStamp(timeStamp)
+	}
 
 	msg := bsmsg.New(false)
 	msg.AddTickets(tickets)
@@ -473,7 +471,8 @@ func (e *Engine) SendTicketAcks(target peer.ID, ticketAcks []tickets.TicketAck) 
 func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 	for {
 		nextTask := e.peerRequestQueue.PopBlock()
-		e.requestRecorder.BlocksPop(nextTask)
+		e.requestRecorder.BlockPop(nextTask)
+		//e.requestRecorder.BlocksPop(nextTask)
 		//WorkSignal will be sent when a new task is pushed into request queue.
 		for nextTask == nil {
 			select {
@@ -481,11 +480,11 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 				return nil, ctx.Err()
 			case <-e.workSignal:
 				nextTask = e.peerRequestQueue.PopBlock()
-				e.requestRecorder.BlocksPop(nextTask)
+				e.requestRecorder.BlockPop(nextTask)
 			case <-e.ticker.C:
 				e.peerRequestQueue.ThawRound()
 				nextTask = e.peerRequestQueue.PopBlock()
-				e.requestRecorder.BlocksPop(nextTask)
+				e.requestRecorder.BlockPop(nextTask)
 			}
 		}
 
@@ -561,6 +560,7 @@ func createTicketsFromEntry(target peer.ID, tasks []peertask.Task, blockSizes ma
 		ticketSize, ok := blockSizes[task.Identifier.(cid.Cid)]
 		if ok {
 			ticket := tickets.CreateBasicTicket(target, task.Identifier.(cid.Cid), int64(ticketSize))
+			//ticket.Set
 			res = append(res, ticket)
 		} else {
 			log.Error("Can not get block sizes when create ticket")
@@ -611,6 +611,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			log.Debugf("%s cancel %s", p, entry.Cid)
 			l.CancelWant(entry.Cid)
 			e.peerRequestQueue.Remove(entry.Cid, p)
+			e.requestRecorder.RemoveTask()
 		} else {
 			log.Debugf("wants %s - %d", entry.Cid, entry.Priority)
 			l.Wants(entry.Cid, entry.Priority)
@@ -630,6 +631,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 						// Add it to sender
 					} else {
 						e.peerRequestQueue.PushBlock(p, activeEntries...)
+						e.requestRecorder.BlockAdd(len(activeEntries), msgSize+blockSize)
 					}
 					activeEntries = []peertask.Task{}
 					msgSize = 0
@@ -650,6 +652,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			activeTickets = append(activeTickets, tmptickets...)
 		}else{
 			e.peerRequestQueue.PushBlock(p, activeEntries...)
+			e.requestRecorder.BlockAdd(len(activeEntries), msgSize)
 		}
 	}
 
@@ -661,7 +664,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			activeTickets = append(activeTickets, t)
 		}
 	}
-
+	e.SendTickets(p, activeTickets)
 	// TODO: Judge whether it is necessary to add ticket to ticket store early so that we can judge send time more correctly
 	// TODO: add activeTickets to ticket sender and ticket store
 
@@ -675,7 +678,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
     // Receive tickets
 	if m.Tickets() != nil {
-		e.handleTickets(ctx, m.Tickets())
+		e.handleTickets(ctx, p, m.Tickets())
 	}
 
 	// Receive Ticket Acks - Jerry 2019/12/14
@@ -704,7 +707,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 //	}
 //}
 
-func (e *Engine) handleTickets(ctx context.Context, tks []tickets.Ticket) {
+func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Ticket) {
 	var cids, noblocks []cid.Cid
 	ticketMap := make(map[cid.Cid] tickets.Ticket)
     rejectsMap := make(map[peer.ID] []tickets.Ticket)
@@ -712,14 +715,15 @@ func (e *Engine) handleTickets(ctx context.Context, tks []tickets.Ticket) {
 
     for _, ticket := range tks {
         cids = append(cids, ticket.Cid())
+        ticket.SetPublisher(p)
         ticketMap[ticket.Cid()] = ticket
     }
     blockSizes := e.bsm.getBlockSizes(ctx, cids)
     for _, cid := range cids {
         _, ok := blockSizes[cid]
-        if ok {
+        if ok {		// If we already have the blocks
             ticket := ticketMap[cid]
-            rejectsMap[ticket.SendTo()] = append(rejectsMap[ticket.SendTo()], ticket)
+            rejectsMap[ticket.Publisher()] = append(rejectsMap[ticket.Publisher()], ticket)
         } else {
             noblocks = append(noblocks, cid)
         }
@@ -731,20 +735,23 @@ func (e *Engine) handleTickets(ctx context.Context, tks []tickets.Ticket) {
         nt := ticketMap[cid]
         if ok {
             if local.Level() <= nt.Level() {
-                rejectsMap[nt.SendTo()] = append(rejectsMap[nt.SendTo()], nt)
+                rejectsMap[nt.Publisher()] = append(rejectsMap[nt.Publisher()], nt)
             } else {
-                rejectsMap[local.SendTo()] = append(rejectsMap[local.SendTo()], local)
-                acceptsMap[nt.SendTo()] = append(acceptsMap[nt.SendTo()], nt)
+                rejectsMap[local.Publisher()] = append(rejectsMap[local.Publisher()], local)
+                acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
             }
         } else {
-            acceptsMap[nt.SendTo()] = append(acceptsMap[nt.SendTo()], nt)
+            acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
         }
     }
-    for reject := range rejectsMap {
+    for p, rejects := range rejectsMap {
         //reject rejectsMap[reject]
+        //e.SendTicketAcks()
+		e.SendTicketAcks(p, tickets.GetRejectAcks(p, rejects))
     }
-    for accept := range acceptsMap {
+    for p, accept := range acceptsMap {
         //accept acceptsMap[reject]
+        e.SendTicketAcks(p, tickets.GetAcceptAcks(p, accept))
     }
 
 }
@@ -778,6 +785,7 @@ func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets
 			// I have corresponding block, send it
 			if msgSize+blockSize > maxMessageSize {
 				e.peerRequestQueue.PushBlock(p, activeEntries...)
+				e.requestRecorder.BlockAdd(len(activeEntries), msgSize+blockSize)
 				activeEntries = []peertask.Task{}
 				msgSize = 0
 			}
@@ -790,13 +798,14 @@ func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets
 	}
 	if len(activeEntries) > 0 {
 		e.peerRequestQueue.PushBlock(p, activeEntries...)
+		e.requestRecorder.BlockAdd(len(activeEntries), msgSize)
 	}
 	e.ticketStore.PrepareSending(prepare)
 }
 
-func (e *Engine) addBlocks(ks []cid.Cid) {
+func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
 	work := false
-
+	blocksizes := e.bsm.getBlockSizes(ctx, ks)
 	for _, l := range e.ledgerMap {
 		l.lk.Lock()
 		for _, k := range ks {
@@ -805,6 +814,11 @@ func (e *Engine) addBlocks(ks []cid.Cid) {
 					Identifier: entry.Cid,
 					Priority:   entry.Priority,
 				})
+				blocksize, ok := blocksizes[entry.Cid]
+				if ok {
+					e.requestRecorder.BlockAdd(1, blocksize)
+				}
+				//e.requestRecorder.BlockAdd(1, e.bsm.getBlockSizes())
 				work = true
 			}
 		}
@@ -818,6 +832,10 @@ func (e *Engine) addBlocks(ks []cid.Cid) {
             Identifier: ack.Cid(),
             Priority: 10000, // how to set the priority?
         })
+		blocksize, ok := blocksizes[ack.Cid()]
+		if ok {
+			e.requestRecorder.BlockAdd(1, blocksize)
+		}
         work = true
 	}
 
@@ -829,11 +847,11 @@ func (e *Engine) addBlocks(ks []cid.Cid) {
 // AddBlocks is called when new blocks are received and added to a block store,
 // meaning there may be peers who want those blocks, so we should send the blocks
 // to them.
-func (e *Engine) AddBlocks(ks []cid.Cid) {
+func (e *Engine) AddBlocks(ctx context.Context, ks []cid.Cid) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
-	e.addBlocks(ks)
+	e.addBlocks(ctx, ks)
 }
 
 // TODO add contents of m.WantList() to my local wantlist? NB: could introduce

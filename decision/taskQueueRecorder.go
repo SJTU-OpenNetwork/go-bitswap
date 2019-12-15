@@ -2,6 +2,7 @@ package decision
 
 import "github.com/ipfs/go-peertaskqueue/peertask"
 
+
 type taskQueueRecorder struct{
 	blockNumber int64
 	blockSize	int64
@@ -9,12 +10,32 @@ type taskQueueRecorder struct{
 	maxSize		int64
 }
 
-func(t *taskQueueRecorder) BlocksAdd(){
-
+func(t *taskQueueRecorder) BlockAdd(taskNumber int, blocksize int){
+	//t.blockSize += task.Tasks
+	t.blockNumber += int64(taskNumber)
+	t.blockSize += int64(blocksize)
 }
 
-func(t *taskQueueRecorder) BlocksPop(task *peertask.TaskBlock){
+func(t *taskQueueRecorder) BlockAddNumberOnly(taskNumber int){
+	t.blockNumber += int64(taskNumber)
+}
+
+func(t *taskQueueRecorder) BlockPop(task *peertask.TaskBlock){
 	//task.Tasks
+	//blockNumber +=
+	if t.blockNumber <= 0{
+		log.Error("pop when record counts 0 blocks")
+		return
+	}
+	t.blockNumber -= int64(len(task.Tasks))
+}
+
+func (t *taskQueueRecorder) RemoveTask(){
+	if t.blockNumber <= 0{
+		log.Error("remove when record counts 0 blocks")
+		return
+	}
+	t.blockNumber --
 }
 
 /*
@@ -37,5 +58,6 @@ func(t *taskQueueRecorder) IsFull() bool{
  * return: the predicted time in millsecond
  */
 func (t *taskQueueRecorder) PredictTime() int64 {
-	return 0
+	//return (t.blockNumber * defaultBlockSize)/
+	return t.blockNumber * 100
 }

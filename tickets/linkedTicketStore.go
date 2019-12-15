@@ -4,8 +4,8 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/ipfs/go-cid"
-	"github.com/libp2p/go-libp2p-core/peer"
 	logging "github.com/ipfs/go-log"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"sync"
 )
 
@@ -27,6 +27,15 @@ func (e *InvalidPublisherError) Error() string{
 		"Ticket Publisher: %s", e.creater.String(), e.publisher.String());
 }
 
+type TicketNotFound struct{
+	pid peer.ID
+	cid cid.Cid
+}
+func (e *TicketNotFound) Error() string{
+	return fmt.Sprintf("Ticket not found.\n" +
+		"pid: %s\n" +
+		"cid: %s", e.pid, e.cid)
+}
 
 //type PeerHandler interface {
 //	SendTicketMessage(entries []Ticket, targets []peer.ID, from uint64)
@@ -40,6 +49,7 @@ func (e *InvalidPublisherError) Error() string{
 type linkedTicketStore struct{
 	mutex sync.Mutex
 	//creater peer.ID
+	storeSize int64
 	dataStore map[cid.Cid] *list.List
 	dataTracker map[cid.Cid]map[peer.ID] *list.Element
 	storeType int32
@@ -83,17 +93,7 @@ func NewLinkedTicketStore() *linkedTicketStore{
 //	}
 //}
 
-// deprecated
-func (s *linkedTicketStore) varify(ticket Ticket) error{
-//	if(s.creater != ticket.Publisher()){
-//		return &InvalidPublisherError{
-//			creater:   s.creater,
-//			publisher: ticket.Publisher(),
-//		}
-//	}
 
-	return nil
-}
 
 func (s *linkedTicketStore) AddTicket(ticket Ticket) error{
 	s.mutex.Lock()
@@ -109,9 +109,9 @@ func (s *linkedTicketStore) AddTicket(ticket Ticket) error{
 	ok := s.TicketExists(ticket.SendTo(), ticket.Cid())
 	if(ok){
 		log.Warningf("Ticket of %s sent to %s already exists.\n" +
-			"It would be replaced by the new one.\n" +
+			"We would not add a new one or replace the old one.\n" +
 			"It is better to remove the old one manually before add the new one", ticket.Cid().String(), ticket.SendTo().String())
-		s.RemoveTicket(ticket.SendTo(), ticket.Cid())
+		//s.RemoveTicket(ticket.SendTo(), ticket.Cid())
 	}
 
 	// Add ticket to dataStore
@@ -132,6 +132,8 @@ func (s *linkedTicketStore) AddTicket(ticket Ticket) error{
 		s.dataTracker[ticket.Cid()] = make(map[peer.ID]*list.Element)
 		s.dataTracker[ticket.Cid()][ticket.SendTo()] = tmpElm
 	}
+
+	s.storeSize ++
 
 	return nil
 }
@@ -158,6 +160,36 @@ func (s *linkedTicketStore) GetTickets(cid cid.Cid) ([]Ticket, error){
 }
 
 func (s *linkedTicketStore) RemoveTicket(pid peer.ID, cid cid.Cid) error{
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	// Remove tracker:
+	tmpmap, ok := s.dataTracker[cid]
+	var elem *list.Element
+	if(!ok){
+		return &TicketNotFound{
+			pid: pid,
+			cid: cid,
+		}
+	}else{
+		elem, ok = tmpmap[pid]
+		if(!ok){
+			return &TicketNotFound{
+				pid: pid,
+				cid: cid,
+			}
+		}
+	}
+
+	delete(tmpmap, pid)
+	if(len(tmpmap) <= 0){
+		tmpmap = nil
+		delete(s.dataTracker, cid)
+	}
+
+	// Remove data
+	s.dataStore[cid].Remove(elem)
+	//delete()
+	s.storeSize --
 	return nil
 }
 
@@ -186,7 +218,13 @@ func (s *linkedTicketStore) TicketSize() int64 {
 }
 
 func (s *linkedTicketStore) RemoveTickets(pid peer.ID, cid []cid.Cid) error {
-    return nil
+    for _, c := range cid{
+    	err := s.RemoveTicket(pid, c)
+    	if err != nil {
+    		return err
+		}
+	}
+	return nil
 }
 
 func (s *linkedTicketStore) PrepareSending(acks []TicketAck) error {
@@ -276,10 +314,8 @@ func (s *linkedTicketStore) GetReceivedTicket(cids []cid.Cid) (map[cid.Cid] Tick
     return ticketMap, nil
 }
 
-func (s *linkedTicketStore) SendTickets(pid peer.ID, tickets []Ticket)  {
-
-}
-
-func (s *linkedTicketStore) SendTicketAcks(pid peer.ID, acks []TicketAck) {
-
+func (s *linkedTicketStore) PredictTime() int64{
+	//TODO: Now implemented for now
+	//return time.Now().UnixNano() / (int64(time.Millisecond)/int64(time.Nanosecond))
+	return s.storeSize * 100
 }
