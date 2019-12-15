@@ -20,6 +20,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/routing"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+    tnet "github.com/libp2p/go-libp2p-testing/net"
 )
 
 var log = logging.Logger("bstestnet")
