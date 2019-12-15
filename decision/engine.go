@@ -682,7 +682,8 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 func (e *Engine) handleTickets(ctx context.Context, tks []tickets.Ticket) {
 	var cids, noblocks []cid.Cid
 	ticketMap := make(map[cid.Cid] tickets.Ticket)
-    var rejects, accepts []tickets.Ticket
+    rejectsMap := make(map[peer.ID] []tickets.Ticket)
+    acceptsMap := make(map[peer.ID] []tickets.Ticket)
 
     for _, ticket := range tks {
         cids = append(cids, ticket.Cid())
@@ -692,7 +693,8 @@ func (e *Engine) handleTickets(ctx context.Context, tks []tickets.Ticket) {
     for _, cid := range cids {
         _, ok := blockSizes[cid]
         if ok {
-            rejects = append(rejects, ticketMap[cid])
+            ticket := ticketMap[cid]
+            rejectsMap[ticket.SendTo()] = append(rejectsMap[ticket.SendTo()], ticket)
         } else {
             noblocks = append(noblocks, cid)
         }
@@ -704,15 +706,22 @@ func (e *Engine) handleTickets(ctx context.Context, tks []tickets.Ticket) {
         nt := ticketMap[cid]
         if ok {
             if local.Level() <= nt.Level() {
-                rejects = append(rejects, nt)
+                rejectsMap[nt.SendTo()] = append(rejectsMap[nt.SendTo()], nt)
             } else {
-                rejects = append(rejects, local)
-                accepts = append(accepts, nt)
+                rejectsMap[local.SendTo()] = append(rejectsMap[local.SendTo()], local)
+                acceptsMap[nt.SendTo()] = append(acceptsMap[nt.SendTo()], nt)
             }
         } else {
-            accepts = append(accepts, nt)
+            acceptsMap[nt.SendTo()] = append(acceptsMap[nt.SendTo()], nt)
         }
     }
+    for reject := range rejectsMap {
+        //reject rejectsMap[reject]
+    }
+    for accept := range acceptsMap {
+        //accept acceptsMap[reject]
+    }
+
 }
 
 func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets.TicketAck) {
