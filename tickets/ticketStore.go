@@ -20,6 +20,7 @@ type TicketTask struct{
  */
 type TicketStore interface{
 	AddTicket(ticket Ticket) error // called after sending a ticket
+	AddTickets(ticket []Ticket) error
 	GetTickets(cid cid.Cid) ([]Ticket, error)
 	RemoveTicket(pid peer.ID, cid cid.Cid) error // remove a specific ticket from the `sended ticket list`, called after receive a reject
 	RemoveTicketEqualsTo(ticket Ticket)

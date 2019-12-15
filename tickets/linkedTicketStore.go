@@ -100,10 +100,10 @@ func (s *linkedTicketStore) AddTicket(ticket Ticket) error{
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	// TicketStore only store the ticket published from self
-	err := s.varify(ticket)
-	if(err != nil){
-		return err
-	}
+	//err := s.varify(ticket)
+	//if(err != nil){
+	//	return err
+	//}
 
 	// Judge whether this ticket is already exists
 	// Remove the old one if so
@@ -134,6 +134,13 @@ func (s *linkedTicketStore) AddTicket(ticket Ticket) error{
 		s.dataTracker[ticket.Cid()][ticket.SendTo()] = tmpElm
 	}
 
+	return nil
+}
+
+func (s *linkedTicketStore) AddTickets(ts []Ticket) error {
+	for _, t := range ts{
+		s.AddTicket(t)
+	}
 	return nil
 }
 

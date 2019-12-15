@@ -56,6 +56,9 @@ func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
 	for {
 		log.Event(ctx, "Bitswap.TaskWorker.Loop", idmap)
 		select {
+		case ticketEnvelope := <- bs.engine.TicketOutbox():
+			//bs.network.SendMessage(ticketEnvelope.Peer, )
+			bs.sendTickets(ctx, ticketEnvelope)
 		case nextEnvelope := <-bs.engine.Outbox():
 			select {
 			case envelope, ok := <-nextEnvelope:
@@ -153,6 +156,14 @@ func (bs *Bitswap) sendBlocks(ctx context.Context, env *engine.Envelope) {
 	err := bs.network.SendMessage(ctx, env.Peer, msg)
 	if err != nil {
 		log.Infof("sendblock error: %s", err)
+	}
+}
+
+func (bs *Bitswap) sendTickets(ctx context.Context, env *engine.Envelope) {
+	defer env.Sent()
+	err := bs.network.SendMessage(ctx, env.Peer, env.Message)
+	if err != nil{
+		log.Infof("sendTickets errorL %s", err)
 	}
 }
 
