@@ -39,8 +39,21 @@ type linkedTicketStore struct{
 	storeType int32
 
     prepareSendingList *list.List
+    receivedTickets map[cid.Cid] Ticket
 }
 
+func NewLinkedTicketStore() *linkedTicketStore{
+	return &linkedTicketStore{
+		dataStore: make(map[cid.Cid]*list.List),
+		dataTracker: make(map[cid.Cid]map[peer.ID]*list.Element),
+		storeType: STORE_SEND,
+
+        prepareSendingList: list.New(),
+        receivedTickets: make(map[cid.Cid] Ticket),
+	}
+}
+
+// deprecated
 func NewLinkedSendTicketStore(creater peer.ID) *linkedTicketStore{
 	return &linkedTicketStore{
 		creater: creater,
@@ -49,9 +62,11 @@ func NewLinkedSendTicketStore(creater peer.ID) *linkedTicketStore{
 		storeType: STORE_SEND,
 
         prepareSendingList: list.New(),
+        receivedTickets: make(map[cid.Cid] Ticket),
 	}
 }
 
+// deprecated
 func NewLinkedRecvTicketStore(creater peer.ID) *linkedTicketStore{
 	return &linkedTicketStore{
 		creater: creater,
@@ -61,13 +76,14 @@ func NewLinkedRecvTicketStore(creater peer.ID) *linkedTicketStore{
 	}
 }
 
+// deprecated
 func (s *linkedTicketStore) varify(ticket Ticket) error{
-	if(s.creater != ticket.Publisher()){
-		return &InvalidPublisherError{
-			creater:   s.creater,
-			publisher: ticket.Publisher(),
-		}
-	}
+//	if(s.creater != ticket.Publisher()){
+//		return &InvalidPublisherError{
+//			creater:   s.creater,
+//			publisher: ticket.Publisher(),
+//		}
+//	}
 
 	return nil
 }
@@ -220,4 +236,28 @@ func (s *linkedTicketStore) PopSendingTasks(cids []cid.Cid) ([]TicketAck, error)
     }
 
     return tasks, nil
+}
+
+func (s *linkedTicketStore) StoreReceivedTickets(tickets []Ticket) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+    for _, ticket := range tickets {
+        s.receivedTickets[ticket.Cid()] = ticket
+    }
+    return nil
+}
+
+func (s *linkedTicketStore) GetReceivedTicket(cids []cid.Cid) (map[cid.Cid] Ticket, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	ticketMap := make(map[cid.Cid] Ticket)
+    for _, cid := range cids {
+        ticket, ok := s.receivedTickets[cid]
+        if ok {
+            ticketMap[cid] = ticket
+        }
+    }
+    return ticketMap, nil
 }

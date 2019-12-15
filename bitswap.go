@@ -23,6 +23,7 @@ import (
 	bssm "github.com/SJTU-OpenNetwork/go-bitswap/sessionmanager"
 	bsspm "github.com/SJTU-OpenNetwork/go-bitswap/sessionpeermanager"
 	bswm "github.com/SJTU-OpenNetwork/go-bitswap/wantmanager"
+	"github.com/SJTU-OpenNetwork/go-bitswap/tickets"
 	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
@@ -130,7 +131,8 @@ func New(parent context.Context, network bsnet.BitSwapNetwork,
 	}
 	notif := notifications.New()
 
-	engine := decision.NewEngine(ctx, bstore, network.ConnectionManager()) // TODO close the engine with Close() method
+    ts := tickets.NewLinkedTicketStore()
+	engine := decision.NewEngine(ctx, bstore, network.ConnectionManager(), ts) // TODO close the engine with Close() method
 	bs := &Bitswap{
 		blockstore:       bstore,
 		engine:           engine,
