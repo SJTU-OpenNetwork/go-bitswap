@@ -515,6 +515,12 @@ func (e *Engine) Peers() []peer.ID {
 	return response
 }
 
+func (e *Engine) createTicketsFromEntry(target peer.ID, tasks []peertask.Task){
+	for _, task := range tasks{
+		ticket := tickets.CreateBasicTicket()
+	}
+}
+
 // MessageReceived performs book-keeping. Returns error if passed invalid
 // arguments.
 func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwapMessage) {
