@@ -230,11 +230,11 @@ func (s *linkedTicketStore) RemoveCanceled() int {
 }
 
 func (s *linkedTicketStore) TicketNumber() int{
-	return 0
+	return s.storeNumber
 }
 
 func (s *linkedTicketStore) TicketSize() int64 {
-	return 0
+	return s.storeSize
 }
 
 func (s *linkedTicketStore) RemoveTickets(pid peer.ID, cid []cid.Cid) error {
@@ -340,15 +340,32 @@ func (s *linkedTicketStore) PredictTime() int64{
 	return int64(s.storeNumber) * 100
 }
 
-func (s *linkedTicketStore) Size() int64{
-	return s.storeSize
-}
-
-func (s *linkedTicketStore) Number() int{
-	return s.storeNumber
-}
-
 func (s *linkedTicketStore) Loggable() map[string] interface{}{
+	storeLoggable :=  make(map[string][]string) // {"pid": [cids]}
+	//trackerLoggable := make(map[string]interface{})
+
+	for cid, m := range(s.dataTracker){
+		//tmplist := make([]string, 0, len(m))
+		for pid, _ := range m{
+			tmplist, ok := storeLoggable[pid.String()]
+			if !ok {
+				tmplist = make([]string,0)
+				tmplist = append(tmplist, cid.String())
+				storeLoggable[pid.String()] = tmplist
+			} else {
+				storeLoggable[pid.String()] = append(storeLoggable[pid.String()], cid.String())
+			}
+		}
+	}
+	return map[string]interface{}{
+		"datastore": storeLoggable,
+		//"dataTracker": trackerLoggable,
+		"storeNumber": s.storeNumber,
+		"storeSize": s.storeSize,
+	}
+}
+
+func (s *linkedTicketStore) LoggableFull() map[string] interface{}{
 	storeLoggable :=  make(map[string]interface{})
 	trackerLoggable := make(map[string]interface{})
 

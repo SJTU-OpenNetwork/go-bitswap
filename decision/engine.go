@@ -9,13 +9,14 @@ import (
 	"time"
 
 	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
+	"github.com/SJTU-OpenNetwork/go-bitswap/utils"
 	wl "github.com/SJTU-OpenNetwork/go-bitswap/wantlist"
+	"github.com/SJTU-OpenNetwork/go-peertaskqueue"
+	"github.com/SJTU-OpenNetwork/go-peertaskqueue/peertask"
 	"github.com/google/uuid"
 	cid "github.com/ipfs/go-cid"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 	logging "github.com/ipfs/go-log"
-	"github.com/SJTU-OpenNetwork/go-peertaskqueue"
-	"github.com/SJTU-OpenNetwork/go-peertaskqueue/peertask"
 	process "github.com/jbenet/goprocess"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
@@ -52,7 +53,7 @@ import (
 // whatever it sees fit to produce desired outcomes (get wanted keys
 // quickly, maintain good relationships with peers, etc).
 
-var log = logging.Logger("engine")
+var log = logging.Logger("hon.engine")
 
 const (
 	// outboxChanBuffer must be 0 to prevent stale messages from being sent
@@ -695,6 +696,9 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
         w := e.handleTicketAcks(ctx, p, acks)
         newWorkExists = newWorkExists || w
     }
+
+    // Logcat situation of ticketStore
+    log.Debug("Ticket Store State:\n", utils.Loggable2json(e.ticketStore))
 }
 
 //func (e *Engine) handleReceiveBlocks(cids []cid.Cid) {

@@ -27,8 +27,6 @@ type TicketStore interface{
 	//RemoveTicketEqualsTo(ticket Ticket)
 	Clean()
 	//RemoveCanceled() int
-	Size() int64
-	Number() int
 	//PopTickets() *TicketTask
 
 	TicketNumber() int
