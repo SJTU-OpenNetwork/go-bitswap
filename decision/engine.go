@@ -647,11 +647,9 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 				if msgSize+blockSize > maxMessageSize {
 					//if(e.requestRecorder.IsFull()){	//Old method - estimate task queue through recorder
 					if(e.peerRequestQueue.TaskLength() > sendTicketThreshold){	//We do not have enough network resources. Send tickets instead of send the block
-						//e.ticketStore.GetTickets()
 						//Create ticket
 						tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
 						activeTickets = append(activeTickets, tmptickets...)
-						// Add it to sender
 					} else {
 						e.peerRequestQueue.PushBlock(p, activeEntries...)
 						//e.requestRecorder.BlockAdd(len(activeEntries), msgSize+blockSize)
@@ -688,6 +686,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		log.Error(err)
 	} else {
 		for _, t := range tmpticketsmap{
+			// The tmpticket's timestamp will be set to current time by CreateBasicTicket
 			tmpticket := tickets.CreateBasicTicket(p, t.Cid(), t.GetSize())
 			if t.TimeStamp() > tmpticket.TimeStamp() {
 				tmpticket.SetTimeStamp(t.TimeStamp())
