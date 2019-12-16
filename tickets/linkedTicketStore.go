@@ -49,7 +49,9 @@ func (e *TicketNotFound) Error() string{
 type linkedTicketStore struct{
 	mutex sync.Mutex
 	//creater peer.ID
+	storeNumber int
 	storeSize int64
+
 	dataStore map[cid.Cid] *list.List
 	dataTracker map[cid.Cid]map[peer.ID] *list.Element
 	storeType int32
@@ -104,20 +106,24 @@ func (s *linkedTicketStore) AddTicket(ticket Ticket) error{
 	//	return err
 	//}
 
+
+	// TODO: What if we already have the ticket??? - Riften
 	// Judge whether this ticket is already exists
 	// Remove the old one if so
-	ok := s.TicketExists(ticket.SendTo(), ticket.Cid())
-	if(ok){
-		log.Warningf("Ticket of %s sent to %s already exists.\n" +
-			"We would not add a new one or replace the old one.\n" +
-			"It is better to remove the old one manually before add the new one", ticket.Cid().String(), ticket.SendTo().String())
+	//ok := s.TicketExists(ticket.SendTo(), ticket.Cid())
+	//if(ok){
+	//	log.Warningf("Ticket of %s sent to %s already exists.\n" +
+	//		"We would not add a new one or replace the old one.\n" +
+	//		"It is better to remove the old one manually before add the new one", ticket.Cid().String(), ticket.SendTo().String())
+		// Remove Here will cause a dead lock
 		//s.RemoveTicket(ticket.SendTo(), ticket.Cid())
-	}
+	//}
 
 	// Add ticket to dataStore
 	tmplist, ok := s.dataStore[ticket.Cid()]
 	var tmpElm *list.Element
 	if(ok){
+		//_, ok = tmplist[]
 		tmpElm = tmplist.PushBack(ticket)
 	}else{
 		s.dataStore[ticket.Cid()] = list.New()
@@ -127,13 +133,18 @@ func (s *linkedTicketStore) AddTicket(ticket Ticket) error{
 	// Add element to dataTracker
 	tmpmap, ok := s.dataTracker[ticket.Cid()]
 	if(ok){//Sub map already created
+		//TODO: Fix redundant add if it happends - Riften
+		if(tmpmap[ticket.SendTo()]!=nil){
+			log.Error("Redundant add a ticket anready exists!\n This may cause inconsistency with store and tracker!")
+		}
 		tmpmap[ticket.SendTo()] = tmpElm
 	}else{//Create sub map first
 		s.dataTracker[ticket.Cid()] = make(map[peer.ID]*list.Element)
 		s.dataTracker[ticket.Cid()][ticket.SendTo()] = tmpElm
 	}
 
-	s.storeSize ++
+	s.storeNumber ++
+	s.storeSize += ticket.GetSize()
 
 	return nil
 }
@@ -184,14 +195,21 @@ func (s *linkedTicketStore) RemoveTicket(pid peer.ID, cid cid.Cid) error{
 
 	delete(tmpmap, pid)
 	if(len(tmpmap) <= 0){
-		tmpmap = nil
+		//tmpmap = nil
 		delete(s.dataTracker, cid)
 	}
 
 	// Remove data
-	s.dataStore[cid].Remove(elem)
-	//delete()
-	s.storeSize --
+	tmpTicket := s.dataStore[cid].Remove(elem).(Ticket)
+
+	if(s.dataStore[cid].Len() == 0){
+		delete(s.dataStore, cid)
+	}
+
+	s.storeNumber --
+	s.storeSize -= tmpTicket.GetSize()
+
+
 	return nil
 }
 
@@ -212,11 +230,11 @@ func (s *linkedTicketStore) RemoveCanceled() int {
 }
 
 func (s *linkedTicketStore) TicketNumber() int{
-	return 0
+	return s.storeNumber
 }
 
 func (s *linkedTicketStore) TicketSize() int64 {
-	return 0
+	return s.storeSize
 }
 
 func (s *linkedTicketStore) RemoveTickets(pid peer.ID, cid []cid.Cid) error {
@@ -317,7 +335,60 @@ func (s *linkedTicketStore) GetReceivedTicket(cids []cid.Cid) (map[cid.Cid] Tick
 }
 
 func (s *linkedTicketStore) PredictTime() int64{
-	//TODO: Now implemented for now
+	//TODO: Not implemented for now - Riften
 	//return time.Now().UnixNano() / (int64(time.Millisecond)/int64(time.Nanosecond))
-	return s.storeSize * 100
+	return int64(s.storeNumber) * 100
+}
+
+func (s *linkedTicketStore) Loggable() map[string] interface{}{
+	storeLoggable :=  make(map[string][]string) // {"pid": [cids]}
+	//trackerLoggable := make(map[string]interface{})
+
+	for cid, m := range(s.dataTracker){
+		//tmplist := make([]string, 0, len(m))
+		for pid, _ := range m{
+			tmplist, ok := storeLoggable[pid.String()]
+			if !ok {
+				tmplist = make([]string,0)
+				tmplist = append(tmplist, cid.String())
+				storeLoggable[pid.String()] = tmplist
+			} else {
+				storeLoggable[pid.String()] = append(storeLoggable[pid.String()], cid.String())
+			}
+		}
+	}
+	return map[string]interface{}{
+		"datastore": storeLoggable,
+		//"dataTracker": trackerLoggable,
+		"storeNumber": s.storeNumber,
+		"storeSize": s.storeSize,
+	}
+}
+
+func (s *linkedTicketStore) LoggableFull() map[string] interface{}{
+	storeLoggable :=  make(map[string]interface{})
+	trackerLoggable := make(map[string]interface{})
+
+	for cid, l := range(s.dataStore){
+		//storeLoggable[cid.String()] = make([]map[string]string, 0, l.Len())
+		tmplist := make([]string, 0, l.Len())
+		for t:=l.Front(); t!=nil; t=t.Next(){
+			tmplist = append(tmplist, t.Value.(Ticket).SendTo().String())
+		}
+		storeLoggable[cid.String()] = tmplist
+	}
+
+	for cid, m := range(s.dataTracker){
+		tmplist := make([]string, 0, len(m))
+		for k, _ := range m{
+			tmplist = append(tmplist, k.String())
+		}
+		trackerLoggable[cid.String()] = tmplist
+	}
+	return map[string]interface{}{
+		"datastore": storeLoggable,
+		"dataTracker": trackerLoggable,
+		"storeNumber": s.storeNumber,
+		"storeSize": s.storeSize,
+	}
 }

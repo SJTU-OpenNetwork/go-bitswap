@@ -41,13 +41,13 @@ func (bs *Bitswap) startWorkers(ctx context.Context, px process.Process) {
 		px.Go(bs.provideWorker)
 	}
 
-	// TODO: start ticketWorker - Jerry deprecated
-	//for i := 0; i < TicketWorkerCount; i++ {
-	//	i := i
-	//	px.Go(func(px process.Process) {
-	//		bs.ticketWorker(ctx, i)
-	//	})
-	//}
+	// TODO: start ticketWorker - Jerry
+	for i := 0; i < TicketWorkerCount; i++ {
+		i := i
+		px.Go(func(px process.Process) {
+			bs.ticketWorker(ctx, i)
+		})
+	}
 }
 
 func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
@@ -56,11 +56,10 @@ func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
 	for {
 		log.Event(ctx, "Bitswap.TaskWorker.Loop", idmap)
 		select {
-		case ticketEnvelope := <- bs.engine.TicketOutbox():
-			//bs.network.SendMessage(ticketEnvelope.Peer, )
-			bs.sendTicketsOrAck(ctx, ticketEnvelope)
-		case ticketAckEnvelope := <- bs.engine.TicketAckOutbox():
-			bs.sendTicketsOrAck(ctx, ticketAckEnvelope)
+		//case ticketEnvelope := <- bs.engine.TicketOutbox():
+		//	bs.sendTicketsOrAck(ctx, ticketEnvelope)
+		//case ticketAckEnvelope := <- bs.engine.TicketAckOutbox():
+		//	bs.sendTicketsOrAck(ctx, ticketAckEnvelope)
 		case nextEnvelope := <-bs.engine.Outbox():
 			select {
 			case envelope, ok := <-nextEnvelope:
@@ -101,16 +100,21 @@ func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
 
 
 // TODO: ticketWorker is used to send ticket or ticket ack - Jerry
-//func (bs *Bitswap) ticketWorker(ctx context.Context, id int) {
-//	idmap := logging.LoggableMap{"ID": id}
-//	defer log.Debug("bitswap ticket worker shutting down...")
-//	for {
-//		log.Event(ctx, "Bitswap.TicketWorker.Loop", idmap)
-//		select{
-//		//case nextEnve
-//		}
-//	}
-//}
+func (bs *Bitswap) ticketWorker(ctx context.Context, id int) {
+	idmap := logging.LoggableMap{"ID": id}
+	defer log.Debug("bitswap ticket worker shutting down...")
+	for {
+		log.Event(ctx, "Bitswap.TicketWorker.Loop", idmap)
+		select{
+		case ticketEnvelope := <- bs.engine.TicketOutbox():
+			bs.sendTicketsOrAck(ctx, ticketEnvelope)
+		case ticketAckEnvelope := <- bs.engine.TicketAckOutbox():
+			bs.sendTicketsOrAck(ctx, ticketAckEnvelope)
+		case <-ctx.Done():
+			return
+		}
+	}
+}
 
 // TODO: add sendTicket - Jerry
 //func (bs *Bitswap) sendTicket(ctx context.Context, env *engine.Envelope) {
@@ -163,6 +167,7 @@ func (bs *Bitswap) sendBlocks(ctx context.Context, env *engine.Envelope) {
 
 func (bs *Bitswap) sendTicketsOrAck(ctx context.Context, env *engine.Envelope) {
 	defer env.Sent()
+	log.Debugf("Begin to send message to %s", env.Peer.String())
 	err := bs.network.SendMessage(ctx, env.Peer, env.Message)
 	if err != nil{
 		log.Infof("sendTickets errorL %s", err)

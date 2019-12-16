@@ -35,7 +35,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
-var log = logging.Logger("bitswap")
+var log = logging.Logger("hon.bitswap")
 
 var _ exchange.SessionExchange = (*Bitswap)(nil)
 
@@ -377,6 +377,7 @@ func (bs *Bitswap) ReceiveMessage(ctx context.Context, p peer.ID, incoming bsmsg
 
 	// This call records changes to wantlists, blocks received,
 	// and number of bytes transfered.
+	log.Debugf("Receive message from %s", p.String())
 	bs.engine.MessageReceived(ctx, p, incoming)
 	// TODO: this is bad, and could be easily abused.
 	// Should only track *useful* messages in ledger

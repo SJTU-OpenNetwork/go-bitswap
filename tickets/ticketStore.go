@@ -24,12 +24,10 @@ type TicketStore interface{
 	GetTickets(cid cid.Cid) ([]Ticket, error)
 	//GetTicketsByCids(cids []cid.Cid) (map[cid.Cid] []Ticket, error)
 	RemoveTicket(pid peer.ID, cid cid.Cid) error // remove a specific ticket from the `sended ticket list`, called after receive a reject
-	RemoveTicketEqualsTo(ticket Ticket)
+	//RemoveTicketEqualsTo(ticket Ticket)
 	Clean()
-	RemoveCanceled() int
-	//Size() int
-
-	PopTickets() *TicketTask
+	//RemoveCanceled() int
+	//PopTickets() *TicketTask
 
 	TicketNumber() int
 	TicketSize() int64
@@ -49,4 +47,6 @@ type TicketStore interface{
     // Interfaces for sending tickets and ticketAcks - Add by Jerry
     // SendTickets(pid peer.ID, tickets []Ticket)
     // SendTicketAcks(pid peer.ID, acks []TicketAck)
+
+    Loggable
 }
