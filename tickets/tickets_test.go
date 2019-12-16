@@ -3,6 +3,9 @@ package tickets
 import (
 	"crypto/rand"
 	pb "github.com/SJTU-OpenNetwork/go-bitswap/message/pb"
+	//"github.com/SJTU-OpenNetwork/go-bitswap/testutil"
+
+	//"github.com/SJTU-OpenNetwork/go-bitswap/testutil"
 	cid "github.com/ipfs/go-cid"
 	u "github.com/ipfs/go-ipfs-util"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -13,12 +16,31 @@ import (
 	"encoding/json"
 )
 
+func GeneratesTicketsWithInfo(receiver peer.ID, cids []cid.Cid) []Ticket {
+	//receivers := GeneratePeers(num)
+	//cids := GenerateCids(num)
+	res := make([]Ticket,0, len(cids))
+	for _, c := range cids{
+		tmpTicket := CreateBasicTicket(receiver, c, 1024)
+		res = append(res, tmpTicket)
+	}
+	return res
+}
+
 func makeRandomCid() cid.Cid {
 	p := make([]byte, 256)
 	rand.Read(p)
 	h, _ := mh.Sum(p, mh.SHA3, 4)
 	cid := cid.NewCidV1(7, h)
 	return cid
+}
+
+func generateCids(num int) []cid.Cid{
+	res := make([]cid.Cid, 0, num)
+	for i:=0;i<num;i++{
+		res = append(res, makeRandomCid())
+	}
+	return res
 }
 
 func mkFakeCid(s string) cid.Cid {
@@ -99,5 +121,30 @@ func TestBasicTicketAck(t *testing.T) {
 }
 
 func TestLinkedTicketStore(t *testing.T) {
+	store = NewLinkedTicketStore()
+	testCids := generateCids(3)
+	testCids2 := generateCids(4)
+	testTickets := GeneratesTicketsWithInfo(peer2, testCids)
+	testTickets2 := GeneratesTicketsWithInfo(peer1, testCids[0:2])
+	testTickets3 := GeneratesTicketsWithInfo(peer1, testCids2)
+	for _, ti := range testTickets{
+		store.AddTicket(ti)
+	}
+	for _, ti := range testTickets2{
+		store.AddTicket(ti)
+	}
 
+	store.AddTickets(testTickets3)
+	t.Log("After add several tickets:\n", loggable2json(store))
+
+	//t.Log("Test redundant add")
+	//store.AddTicket(testTickets[0])
+	//t.Log(loggable2json(store))
+
+	store.RemoveTickets(peer2, testCids)
+	t.Log("After remove several tickets:\n", loggable2json(store))
+
+	t.Log("Test redundant remove")
+	store.RemoveTickets(peer2, testCids)
+	t.Log(loggable2json(store))
 }

@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	//"github.com/SJTU-OpenNetwork/go-bitswap/tickets"
 	"math/rand"
 
 	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
@@ -127,3 +128,5 @@ func IndexOf(blks []blocks.Block, c cid.Cid) int {
 func ContainsBlock(blks []blocks.Block, block blocks.Block) bool {
 	return IndexOf(blks, block.Cid()) != -1
 }
+
+
