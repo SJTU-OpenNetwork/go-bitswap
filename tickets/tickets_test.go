@@ -41,6 +41,7 @@ func loggable2json(loginfo Loggable) string {
 var peer1 peer.ID
 var peer2 peer.ID
 var cids []cid.Cid
+var store TicketStore
 const numCids = 10
 
 func init(){
@@ -50,6 +51,7 @@ func init(){
 	for i:=0; i<numCids; i++{
 		cids = append(cids, makeRandomCid())
 	}
+	store = NewLinkedTicketStore()
 }
 
 func TestBasicTicket(t *testing.T) {
