@@ -38,7 +38,7 @@ type TicketStore interface{
 	// Interfaces for sending tickets - Add by Jerry
     RemoveTickets(pid peer.ID, cids []cid.Cid) error // remove a set of tickets from the `sended ticket list`
 	PrepareSending(acks []TicketAck) error // called if don't have corresponding block when receiving an ACK, put the entry on a list
-	RemoveSendingTask(pid peer.ID, cids []cid.Cid) error // remove a specific task from the `prepared sending task list`, called after receive a reject
+	RemoveSendingTasks(pid peer.ID, cids []cid.Cid) error // remove a specific task from the `prepared sending task list`, called after receive a reject
 	PopSendingTasks(cids []cid.Cid) ([]TicketAck, error) // pop all tasks for a specific cid in `prepared sending task list`, called when a block is received
 	PredictTime() int64 // Get the predicted time used to complete all the tickets sent. Return time in millsecond
 

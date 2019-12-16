@@ -166,17 +166,19 @@ func (s *linkedTicketStore) RemoveTicket(pid peer.ID, cid cid.Cid) error{
 	tmpmap, ok := s.dataTracker[cid]
 	var elem *list.Element
 	if(!ok){
-		return &TicketNotFound{
-			pid: pid,
-			cid: cid,
-		}
+        return nil
+//		return &TicketNotFound{
+//			pid: pid,
+//			cid: cid,
+//		}
 	}else{
 		elem, ok = tmpmap[pid]
 		if(!ok){
-			return &TicketNotFound{
-				pid: pid,
-				cid: cid,
-			}
+            return nil
+//			return &TicketNotFound{
+//				pid: pid,
+//				cid: cid,
+//			}
 		}
 	}
 
@@ -237,7 +239,7 @@ func (s *linkedTicketStore) PrepareSending(acks []TicketAck) error {
     return nil
 }
 
-func (s *linkedTicketStore) RemoveSendingTask(pid peer.ID, cids []cid.Cid) error {
+func (s *linkedTicketStore) RemoveSendingTasks(pid peer.ID, cids []cid.Cid) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

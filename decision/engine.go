@@ -93,6 +93,8 @@ const (
 	defaultRequestCapacity = 128
 	defaultRequestSizeCapacity = 128 * 512 * 1024
 	defaultBlockSize = 512
+
+    sendTicketThreshold = 10
 )
 
 var (
@@ -607,12 +609,14 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 	var activeEntries []peertask.Task
 	var activeTickets []tickets.Ticket
 	var queryCids []cid.Cid
+    var cancels []cid.Cid
 
 	for _, entry := range m.Wantlist() {
 		if entry.Cancel {
 			log.Debugf("%s cancel %s", p, entry.Cid)
 			l.CancelWant(entry.Cid)
 			e.peerRequestQueue.Remove(entry.Cid, p)
+            cancels = append(cancels, entry.Cid)
 			//e.requestRecorder.RemoveTask()
 		} else {
 			log.Debugf("wants %s - %d", entry.Cid, entry.Priority)
@@ -625,7 +629,8 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 				// resources are sufficient - Jerry
 				newWorkExists = true
 				if msgSize+blockSize > maxMessageSize {
-					if(e.requestRecorder.IsFull()){	//We do not have enough network resources. Send tickets instead of send the block
+					//if(e.requestRecorder.IsFull()){	//Old method - estimate task queue through recorder
+					if(e.peerRequestQueue.TaskLength() > sendTicketThreshold){	//We do not have enough network resources. Send tickets instead of send the block
 						//e.ticketStore.GetTickets()
 						//Create ticket
 						tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
@@ -648,6 +653,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			}
 		}
 	}
+    e.ticketStore.RemoveSendingTasks(p, cancels)
 	if len(activeEntries) > 0 {
 		if e.requestRecorder.IsFull() {
 			tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
@@ -680,13 +686,14 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
     // Receive tickets
 	if m.Tickets() != nil {
-		e.handleTickets(ctx, p, m.Tickets())
+        e.handleTickets(ctx, p, m.Tickets())
 	}
 
 	// Receive Ticket Acks - Jerry 2019/12/14
 	acks := m.TicketAcks()
     if acks != nil {
-        e.handleTicketAcks(ctx, p, acks)
+        w := e.handleTicketAcks(ctx, p, acks)
+        newWorkExists = newWorkExists || w
     }
 }
 
@@ -758,11 +765,12 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
 
 }
 
-func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets.TicketAck) {
+func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets.TicketAck) bool {
 	ackMap := make(map[cid.Cid] tickets.TicketAck)
 	accepts := make([]cid.Cid,0)
 	rejects := make([]cid.Cid,0)
 	prepare := make([]tickets.TicketAck,0)
+    work := false
 
     for _, ack := range acks {
 		switch ack.ACK()  {
@@ -774,7 +782,7 @@ func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets
 		ackMap[ack.Cid()] = ack
 	}
     // handle reject Acks
-    e.ticketStore.RemoveSendingTask(p, rejects)
+    e.ticketStore.RemoveSendingTasks(p, rejects)
 	e.ticketStore.RemoveTickets(p, rejects)
 
     // handle accept Acks
@@ -790,6 +798,7 @@ func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets
 				//e.requestRecorder.BlockAdd(len(activeEntries), msgSize+blockSize)
 				activeEntries = []peertask.Task{}
 				msgSize = 0
+                work = true
 			}
 			activeEntries = append(activeEntries, peertask.Task{Identifier: ackMap[c].Cid(), Priority: 10})
 			msgSize += blockSize
@@ -800,9 +809,11 @@ func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets
 	}
 	if len(activeEntries) > 0 {
 		e.peerRequestQueue.PushBlock(p, activeEntries...)
+        work = true
 		//e.requestRecorder.BlockAdd(len(activeEntries), msgSize)
 	}
 	e.ticketStore.PrepareSending(prepare)
+    return work
 }
 
 func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
