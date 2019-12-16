@@ -1,6 +1,7 @@
 module github.com/SJTU-OpenNetwork/go-bitswap
 
 require (
+	github.com/SJTU-OpenNetwork/go-peertaskqueue v0.1.2
 	github.com/cskr/pubsub v1.0.2
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.1
@@ -17,7 +18,6 @@ require (
 	github.com/ipfs/go-ipfs-util v0.0.1
 	github.com/ipfs/go-log v0.0.1
 	github.com/ipfs/go-metrics-interface v0.0.1
-	github.com/ipfs/go-peertaskqueue v0.1.1
 	github.com/jbenet/goprocess v0.1.3
 	github.com/libp2p/go-buffer-pool v0.0.2
 	github.com/libp2p/go-libp2p v0.4.0

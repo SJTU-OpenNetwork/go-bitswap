@@ -65,3 +65,8 @@ func (t *taskQueueRecorder) PredictTime() int64 {
 	//return (t.blockNumber * defaultBlockSize)/
 	return t.blockNumber * 100
 }
+
+func (t *taskQueueRecorder) PredictTimeByNumOfTasks(num int) int64 {
+	//return (t.blockNumber * defaultBlockSize)/
+	return int64(num) * 100
+}

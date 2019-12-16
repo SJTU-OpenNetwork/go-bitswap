@@ -386,7 +386,9 @@ func (e *Engine) taskWorkerExit() {
 
 func (e *Engine) getTimeStamp() int64{
 	baseTime := time.Now().UnixNano() / (int64(time.Millisecond)/int64(time.Nanosecond))
-	return baseTime + e.requestRecorder.PredictTime() + e.ticketStore.PredictTime()
+	//return baseTime + e.requestRecorder.PredictTime() + e.ticketStore.PredictTime()
+    numOfTasks := e.peerRequestQueue.TaskLength()
+    return baseTime + e.requestRecorder.PredictTimeByNumOfTasks(numOfTasks) + e.ticketStore.PredictTime()
 }
 
 func (e *Engine) SendTickets(target peer.ID, tickets []tickets.Ticket) {
@@ -471,7 +473,7 @@ func (e *Engine) SendTicketAcks(target peer.ID, ticketAcks []tickets.TicketAck) 
 func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 	for {
 		nextTask := e.peerRequestQueue.PopBlock()
-		e.requestRecorder.BlockPop(nextTask)
+		//e.requestRecorder.BlockPop(nextTask)
 		//e.requestRecorder.BlocksPop(nextTask)
 		//WorkSignal will be sent when a new task is pushed into request queue.
 		for nextTask == nil {
@@ -480,11 +482,11 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 				return nil, ctx.Err()
 			case <-e.workSignal:
 				nextTask = e.peerRequestQueue.PopBlock()
-				e.requestRecorder.BlockPop(nextTask)
+				//e.requestRecorder.BlockPop(nextTask)
 			case <-e.ticker.C:
 				e.peerRequestQueue.ThawRound()
 				nextTask = e.peerRequestQueue.PopBlock()
-				e.requestRecorder.BlockPop(nextTask)
+				//e.requestRecorder.BlockPop(nextTask)
 			}
 		}
 
@@ -611,7 +613,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			log.Debugf("%s cancel %s", p, entry.Cid)
 			l.CancelWant(entry.Cid)
 			e.peerRequestQueue.Remove(entry.Cid, p)
-			e.requestRecorder.RemoveTask()
+			//e.requestRecorder.RemoveTask()
 		} else {
 			log.Debugf("wants %s - %d", entry.Cid, entry.Priority)
 			l.Wants(entry.Cid, entry.Priority)
@@ -631,7 +633,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 						// Add it to sender
 					} else {
 						e.peerRequestQueue.PushBlock(p, activeEntries...)
-						e.requestRecorder.BlockAdd(len(activeEntries), msgSize+blockSize)
+						//e.requestRecorder.BlockAdd(len(activeEntries), msgSize+blockSize)
 					}
 					activeEntries = []peertask.Task{}
 					msgSize = 0
@@ -652,7 +654,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			activeTickets = append(activeTickets, tmptickets...)
 		}else{
 			e.peerRequestQueue.PushBlock(p, activeEntries...)
-			e.requestRecorder.BlockAdd(len(activeEntries), msgSize)
+			//e.requestRecorder.BlockAdd(len(activeEntries), msgSize)
 		}
 	}
 
@@ -785,7 +787,7 @@ func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets
 			// I have corresponding block, send it
 			if msgSize+blockSize > maxMessageSize {
 				e.peerRequestQueue.PushBlock(p, activeEntries...)
-				e.requestRecorder.BlockAdd(len(activeEntries), msgSize+blockSize)
+				//e.requestRecorder.BlockAdd(len(activeEntries), msgSize+blockSize)
 				activeEntries = []peertask.Task{}
 				msgSize = 0
 			}
@@ -798,14 +800,14 @@ func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets
 	}
 	if len(activeEntries) > 0 {
 		e.peerRequestQueue.PushBlock(p, activeEntries...)
-		e.requestRecorder.BlockAdd(len(activeEntries), msgSize)
+		//e.requestRecorder.BlockAdd(len(activeEntries), msgSize)
 	}
 	e.ticketStore.PrepareSending(prepare)
 }
 
 func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
 	work := false
-	blocksizes := e.bsm.getBlockSizes(ctx, ks)
+	//blocksizes := e.bsm.getBlockSizes(ctx, ks)
 	for _, l := range e.ledgerMap {
 		l.lk.Lock()
 		for _, k := range ks {
@@ -814,10 +816,10 @@ func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
 					Identifier: entry.Cid,
 					Priority:   entry.Priority,
 				})
-				blocksize, ok := blocksizes[entry.Cid]
-				if ok {
-					e.requestRecorder.BlockAdd(1, blocksize)
-				}
+				//blocksize, ok := blocksizes[entry.Cid]
+				//if ok {
+				//	e.requestRecorder.BlockAdd(1, blocksize)
+				//}
 				//e.requestRecorder.BlockAdd(1, e.bsm.getBlockSizes())
 				work = true
 			}
@@ -832,10 +834,10 @@ func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
             Identifier: ack.Cid(),
             Priority: 10000, // how to set the priority?
         })
-		blocksize, ok := blocksizes[ack.Cid()]
-		if ok {
-			e.requestRecorder.BlockAdd(1, blocksize)
-		}
+		//blocksize, ok := blocksizes[ack.Cid()]
+		//if ok {
+		//	e.requestRecorder.BlockAdd(1, blocksize)
+		//}
         work = true
 	}
 
