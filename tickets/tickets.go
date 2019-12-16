@@ -53,7 +53,7 @@ type Ticket interface {
 	Publisher() peer.ID		// Needed because the ticket receiver should send ack to ticket sender
 	SendTo() peer.ID
 	Cid() cid.Cid
-	Level() int64			// Higher level, lower priority
+	TimeStamp() int64 // Higher level, lower priority
 	//Valid(peer.ID, peer.ID) bool
 	GetSize() int64
 	GetState() int32
@@ -88,7 +88,7 @@ type TicketAck interface {
 	Loggable
 }
 
-// TODO: Is it possible that the timestamps of received ticket and sent ticket are different? Is that matters? - Riften
+// TODO: Is it possible that the timestamps of received ticket and sent ticket are different? Does that matter? - Riften
 
 type BasicTicket struct{
 	publisher peer.ID
@@ -171,7 +171,7 @@ func (t *BasicTicket) Cid() cid.Cid{
 	return t.contentId
 }
 
-func (t* BasicTicket) Level() int64{
+func (t* BasicTicket) TimeStamp() int64{
 	return t.timeStamp
 }
 
@@ -225,7 +225,7 @@ func (t *BasicTicket) Loggable() map[string]interface{} {
 		"publisher": t.Publisher().String(),
 		"receiver": t.SendTo().String(),
 		"cid": t.Cid().String(),
-		"timestamp": t.Level(),
+		"timestamp": t.TimeStamp(),
 		"state" : pb.Ticket_State_name[t.GetState()],
 	}
 }

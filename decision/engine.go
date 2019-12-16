@@ -383,17 +383,28 @@ func (e *Engine) taskWorkerExit() {
 }
 
 
-
-//TODO: channel may be blocked if there is too more tickets to send. Try to send it using some kind of queue
-//func (e )
-
+/*
+ * Get the timestamp used for ticket timestamp
+ * timestamp = current time + time used to solve the block sending + time used to solve promised tickets
+ */
 func (e *Engine) getTimeStamp() int64{
 	baseTime := time.Now().UnixNano() / (int64(time.Millisecond)/int64(time.Nanosecond))
 	//return baseTime + e.requestRecorder.PredictTime() + e.ticketStore.PredictTime()
-    numOfTasks := e.peerRequestQueue.TaskLength()
-    return baseTime + e.requestRecorder.PredictTimeByNumOfTasks(numOfTasks) + e.ticketStore.PredictTime()
+    //numOfTasks := e.peerRequestQueue.TaskLength()
+    return baseTime + e.getTimeDuration()
 }
 
+/*
+ * Get the time duration used for ticket timestamp
+ * We split this from getTimeStamp because
+ * 		we need it to set the timestamp for ticket built from received tickets
+ */
+func (e *Engine) getTimeDuration() int64{
+	numOfTasks := e.peerRequestQueue.TaskLength()
+	return e.requestRecorder.PredictTimeByNumOfTasks(numOfTasks) + e.ticketStore.PredictTime()
+}
+
+//TODO: channel may be blocked if there is too more tickets to send. Try to send it using some kind of queue
 func (e *Engine) SendTickets(target peer.ID, tickets []tickets.Ticket) {
 	//1. Build Envelope
 	//Envelope:
@@ -402,9 +413,9 @@ func (e *Engine) SendTickets(target peer.ID, tickets []tickets.Ticket) {
 	//	- Sent: the call back func called when sending complete
 	//
 	//2. Send envelope to outbox
-	timeStamp := e.getTimeStamp()
+	timeDuration := e.getTimeDuration()
 	for _, t := range(tickets){
-		t.SetTimeStamp(timeStamp)
+		t.SetTimeStamp(t.TimeStamp() + timeDuration)
 	}
 
 	msg := bsmsg.New(false)
@@ -419,6 +430,8 @@ func (e *Engine) SendTickets(target peer.ID, tickets []tickets.Ticket) {
 			e.ticketStore.AddTickets(tickets)
 		},
 	}
+
+	log.Debugf("Put tickets to channel %d/%d", len(e.ticketOutbox), ticketOutboxChanBuffer)
 	e.ticketOutbox <- envelope
 }
 
@@ -436,6 +449,8 @@ func (e *Engine) SendTicketAcks(target peer.ID, ticketAcks []tickets.TicketAck) 
 			//		Do nothing for now.
 		},
 	}
+
+	log.Debugf("Put ticket acks to channel %d/%d", len(e.ticketAckOutbox), ticketAckOutboxChanBuffer)
 	e.ticketAckOutbox <- envelope
 }
 //func (e *Engine) nextTicketEnvelope(ctx context.Context) (*Envelope, error) {
@@ -620,7 +635,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
             cancels = append(cancels, entry.Cid)
 			//e.requestRecorder.RemoveTask()
 		} else {
-			log.Debugf("wants %s - %d", entry.Cid, entry.Priority)
+			log.Debugf("%s wants %s - %d", p, entry.Cid, entry.Priority)
 			l.Wants(entry.Cid, entry.Priority)
 			blockSize, ok := blockSizes[entry.Cid]
 			if ok {
@@ -665,17 +680,22 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		}
 	}
 
+	// Find the tickets we have received about the wanted block
+	// TODO: This is an Error!!!!! We should not directly forward the received tickets !!!! - Riften
+	//		For now, we directly add the remaining time on timestamp of received tickets
 	tmpticketsmap, err := e.ticketStore.GetReceivedTicket(queryCids)
 	if err != nil {
 		log.Error(err)
 	} else {
 		for _, t := range tmpticketsmap{
-			activeTickets = append(activeTickets, t)
+			tmpticket := tickets.CreateBasicTicket(p, t.Cid(), t.GetSize())
+			if t.TimeStamp() > tmpticket.TimeStamp() {
+				tmpticket.SetTimeStamp(t.TimeStamp())
+			}
+			activeTickets = append(activeTickets, tmpticket)
 		}
 	}
 	e.SendTickets(p, activeTickets)
-	// TODO: Judge whether it is necessary to add ticket to ticket store early so that we can judge send time more correctly
-	// TODO: add activeTickets to ticket sender and ticket store
 
 	// Receive blocks
 	blockCids := make([]cid.Cid, 0)
@@ -747,7 +767,7 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
         local, ok := localMap[cid]
         nt := ticketMap[cid]
         if ok {
-            if local.Level() <= nt.Level() {
+            if local.TimeStamp() <= nt.TimeStamp() {
                 rejectsMap[nt.Publisher()] = append(rejectsMap[nt.Publisher()], nt)
             } else {
                 rejectsMap[local.Publisher()] = append(rejectsMap[local.Publisher()], local)
