@@ -204,7 +204,7 @@ func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger,
 			maxSize:defaultRequestSizeCapacity,
 		},
         ticketStore:     ts,
-        peerWantList:    make(map[cid.Cid] *list.List)
+        peerWantlistMap: make(map[cid.Cid] *list.List),
 	}
 	e.tagQueued = fmt.Sprintf(tagFormat, "queued", uuid.New().String())
 	e.tagUseful = fmt.Sprintf(tagFormat, "useful", uuid.New().String())
@@ -683,6 +683,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 	}
     e.ticketStore.RemoveTickets(p, cancels)
     e.ticketStore.RemoveSendingTasks(p, cancels)
+    e.unstoreWantlist(p, cancels)
 	if len(activeEntries) > 0 {
 		if e.requestRecorder.IsFull() {
 			tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
@@ -702,7 +703,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		log.Error(err)
 	} else {
 		for _, c := range queryCids{
-            t, ok = tmpticketsmap[c]
+            t, ok := tmpticketsmap[c]
             if ok {
 			    // The tmpticket's timestamp will be set to current time by CreateBasicTicket
 			    tmpticket := tickets.CreateBasicTicket(p, t.Cid(), t.GetSize())
@@ -716,7 +717,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		}
 	}
 	//e.SendTickets(p, activeTickets)
-    e.storeUnhandledWantlist(unhandledWantlist, p)
+    e.storeUnhandledWantlist(p, unhandledWantlist)
 	e.ticketStore.SendTickets(activeTickets, p)
 
 	// Receive blocks
@@ -767,10 +768,14 @@ func (e *Engine) storeUnhandledWantlist(wl []cid.Cid, p peer.ID) {
     defer e.peerWantlistLock.Unlock()
 
     for _, c := range wl {
-        tmpList, ok := e.peerWantlist[c]
+        _, ok := e.peerWantlistMap[c]
         if !ok {
-            s.
+            e.peerWantlistMap[c] = list.New()
         }
+        var newEntry PeerWantlistEntry
+        newEntry.timestamp = time.Now().UnixNano()
+        newEntry.pid = p
+        e.peerWantlistMap[c].PushBack(newEntry)
     }
 }
 
