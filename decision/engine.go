@@ -625,7 +625,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 	if m.Empty() {
 		log.Debugf("received empty message from %s", p)
 	}
-
+	log.Debugf("received message from %s", p)
 	newWorkExists := false
 	defer func() {
 		if newWorkExists {
@@ -646,7 +646,6 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
 	l := e.findOrCreate(p)		//Find the ledger
 	l.lk.Lock()
-	defer l.lk.Unlock()
 	if m.Full() {
 		l.wantList = wl.New()
 	}
@@ -755,15 +754,19 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		l.ReceivedBytes(len(block.RawData()))
 		blockCids = append(blockCids, block.Cid())
 	}
+	l.lk.Unlock()
 
     // Receive tickets
 	if m.Tickets() != nil {
+        log.Debug("handle ticket")
         e.handleTickets(ctx, p, m.Tickets())
 	}
 
+    log.Debug("handle ticket finish")
 	// Receive Ticket Acks - Jerry 2019/12/14
 	acks := m.TicketAcks()
     if acks != nil {
+        log.Debug("handle ticket ack")
         w := e.handleTicketAcks(ctx, p, acks)
         newWorkExists = newWorkExists || w
     }
@@ -873,6 +876,7 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
         e.ticketStore.StoreReceivedTickets(accepts)
     }
 
+    log.Debug("GET HERE!")
     // TODO: now I reveive a lot of new tickets, I may missed a lot wantlists
 	for _, l := range e.ledgerMap {
 		l.lk.Lock()

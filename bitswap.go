@@ -99,7 +99,7 @@ func New(parent context.Context, network bsnet.BitSwapNetwork,
 	// exclusively. We should probably find another way to share logging data
 
 	//Set log to debug
-	utils.SetCoreLogLevel("DEBUG")
+	utils.SetCoreLogLevel("ERROR")
 
 	ctx, cancelFunc := context.WithCancel(parent)
 	ctx = metrics.CtxSubScope(ctx, "bitswap")
