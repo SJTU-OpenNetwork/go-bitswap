@@ -132,7 +132,7 @@ func New(parent context.Context, network bsnet.BitSwapNetwork,
 	}
 	notif := notifications.New()
 
-    ts := tickets.NewLinkedTicketStore()
+    ts := tickets.NewLinkedTicketStore(pm)
 	engine := decision.NewEngine(ctx, bstore, network.ConnectionManager(), ts) // TODO close the engine with Close() method
 	bs := &Bitswap{
 		blockstore:       bstore,

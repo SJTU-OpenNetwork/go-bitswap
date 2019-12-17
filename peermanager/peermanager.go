@@ -4,7 +4,7 @@ import (
 	"context"
 
 	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
-	//tickets "github.com/SJTU-OpenNetwork/go-bitswap/tickets"
+	tickets "github.com/SJTU-OpenNetwork/go-bitswap/tickets"
 	wantlist "github.com/SJTU-OpenNetwork/go-bitswap/wantlist"
 
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -13,8 +13,8 @@ import (
 // PeerQueue provides a queue of messages to be sent for a single peer.
 type PeerQueue interface {
 	AddMessage(entries []bsmsg.Entry, ses uint64)
-	//AddTicketMessage(tickets []tickets.Ticket, ses uint64)
-	//AddTicketAckMessage(acks []tickets.TicketAck, ses uint64)
+	AddTicketMessage(tickets []tickets.Ticket)
+	AddTicketAckMessage(acks []tickets.TicketAck)
 	Startup()
 	AddWantlist(initialWants *wantlist.SessionTrackedWantlist)
 	Shutdown()
@@ -101,21 +101,21 @@ func (pm *PeerManager) SendMessage(entries []bsmsg.Entry, targets []peer.ID, fro
 
 // SendTicketMessage is called to send a message contains tickets to some peers in the pool;
 // NOT TESTED - Jerry
-//func (pm *PeerManager) SendTicketMessage(tickets []tickets.Ticket, targets []peer.ID, from uint64) {
-//	for _, t := range targets {
-//		pqi := pm.getOrCreate(t)
-//		pqi.pq.AddTicketMessage(tickets, from)
-//	}
-//}
+func (pm *PeerManager) SendTicketMessage(tickets []tickets.Ticket, targets []peer.ID) {
+	for _, t := range targets {
+		pqi := pm.getOrCreate(t)
+		pqi.pq.AddTicketMessage(tickets)
+	}
+}
 
 // SendTicketAckMessage is called to send a message contains tickets to some peers in the pool;
 // NOT TESTED - Jerry
-//func (pm *PeerManager) SendTicketAckMessage(acks []tickets.TicketAck, targets []peer.ID, from uint64) {
-//	for _, t := range targets {
-//		pqi := pm.getOrCreate(t)
-//		pqi.pq.AddTicketAckMessage(acks, from)
-//	}
-//}
+func (pm *PeerManager) SendTicketAckMessage(acks []tickets.TicketAck, targets []peer.ID) {
+	for _, t := range targets {
+		pqi := pm.getOrCreate(t)
+		pqi.pq.AddTicketAckMessage(acks)
+	}
+}
 
 func (pm *PeerManager) getOrCreate(p peer.ID) *peerQueueInstance {
 	pqi, ok := pm.peerQueues[p]

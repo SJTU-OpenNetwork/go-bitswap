@@ -37,10 +37,10 @@ func (e *TicketNotFound) Error() string{
 		"cid: %s", e.pid, e.cid)
 }
 
-//type PeerHandler interface {
-//	SendTicketMessage(entries []Ticket, targets []peer.ID, from uint64)
-//	SendTicketAckMessage(entries []TicketAck, targets []peer.ID, from uint64)
-//}
+type PeerHandler interface {
+	SendTicketMessage(entries []Ticket, targets []peer.ID)
+	SendTicketAckMessage(entries []TicketAck, targets []peer.ID)
+}
 
 // linked Ticket Store implement the ticketStore interface.
 // It uses linked list as the based data structure and further builds tracker on it.
@@ -58,10 +58,10 @@ type linkedTicketStore struct{
 
     prepareSendingList *list.List
     receivedTickets map[cid.Cid] Ticket
-    //peerManager PeerHandler
+    peerManager PeerHandler
 }
 
-func NewLinkedTicketStore() *linkedTicketStore{
+func NewLinkedTicketStore(pm PeerHandler) *linkedTicketStore{
 	return &linkedTicketStore{
 		dataStore: make(map[cid.Cid]*list.List),
 		dataTracker: make(map[cid.Cid]map[peer.ID]*list.Element),
@@ -69,7 +69,7 @@ func NewLinkedTicketStore() *linkedTicketStore{
 
         prepareSendingList: list.New(),
         receivedTickets: make(map[cid.Cid] Ticket),
-        //peerManager: pm,
+        peerManager: pm,
 	}
 }
 
@@ -391,4 +391,14 @@ func (s *linkedTicketStore) LoggableFull() map[string] interface{}{
 		"storeNumber": s.storeNumber,
 		"storeSize": s.storeSize,
 	}
+}
+    
+func (s *linkedTicketStore) SendTickets(tickets []Ticket, pid peer.ID) {
+    var pids = []peer.ID{pid}
+    s.peerManager.SendTicketMessage(tickets, pids)
+}
+
+func (s *linkedTicketStore) SendTicketAcks(acks []TicketAck, pid peer.ID) {
+    var pids = []peer.ID{pid}
+    s.peerManager.SendTicketAckMessage(acks, pids)
 }

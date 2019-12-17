@@ -694,7 +694,8 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			activeTickets = append(activeTickets, tmpticket)
 		}
 	}
-	e.SendTickets(p, activeTickets)
+	//e.SendTickets(p, activeTickets)
+	e.ticketStore.SendTickets(activeTickets, p)
 
 	// Receive blocks
 	blockCids := make([]cid.Cid, 0)
@@ -778,12 +779,13 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
     }
     for p, rejects := range rejectsMap {
         //reject rejectsMap[reject]
-        //e.SendTicketAcks()
-		e.SendTicketAcks(p, tickets.GetRejectAcks(p, rejects))
+		//e.SendTicketAcks(p, tickets.GetRejectAcks(p, rejects))
+		e.ticketStore.SendTicketAcks(tickets.GetRejectAcks(p, rejects), p)
     }
-    for p, accept := range acceptsMap {
+    for p, accepts := range acceptsMap {
         //accept acceptsMap[reject]
-        e.SendTicketAcks(p, tickets.GetAcceptAcks(p, accept))
+        //e.SendTicketAcks(p, tickets.GetAcceptAcks(p, accept))
+		e.ticketStore.SendTicketAcks(tickets.GetAcceptAcks(p, accepts), p)
     }
 
 }
