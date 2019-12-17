@@ -427,12 +427,14 @@ func (s *linkedTicketStore) LoggableFull() map[string] interface{}{
 }
     
 func (s *linkedTicketStore) SendTickets(tickets []Ticket, pid peer.ID) {
+	log.Debugf("send tickets to %s", pid.String())
     var pids = []peer.ID{pid}
     s.peerManager.SendTicketMessage(tickets, pids)
     s.AddTickets(tickets)
 }
 
 func (s *linkedTicketStore) SendTicketAcks(acks []TicketAck, pid peer.ID) {
+	log.Debugf("send tickets ack to %s", pid.String())
     var pids = []peer.ID{pid}
     s.peerManager.SendTicketAckMessage(acks, pids)
 }

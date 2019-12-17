@@ -676,14 +676,17 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 				// although we have the block, but the network resources are limited
 				// I may just send a ticket, which means I will send the block when the 
 				// resources are sufficient - Jerry
+				log.Debugf("have block %s", entry.Cid)
 				newWorkExists = true
 				if msgSize+blockSize > maxMessageSize {
 					//if(e.requestRecorder.IsFull()){	//Old method - estimate task queue through recorder
 					if(e.peerRequestQueue.TaskLength() > sendTicketThreshold){	//We do not have enough network resources. Send tickets instead of send the block
 						//Create ticket
+						log.Debug("Solve wantlist: peerRequestQueue is full. Create tickets.")
 						tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
 						activeTickets = append(activeTickets, tmptickets...)
 					} else {
+						log.Debug("Solve wantlist: peerRequestQueue has space. Add tasks block.")
 						e.peerRequestQueue.PushBlock(p, activeEntries...)
 						//e.requestRecorder.BlockAdd(len(activeEntries), msgSize+blockSize)
 					}
@@ -696,6 +699,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 				// although we do not have the block, but I have the ticket. - Jerry
 				// So I can send a ticket with higher level - Jerry
 				// Judge whether we have the tickets
+				log.Debugf("not have block %s", entry.Cid)
 				queryCids = append(queryCids, entry.Cid)
 			}
 		}
@@ -704,10 +708,12 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
     e.ticketStore.RemoveSendingTasks(p, cancels)
     //e.unstoreWantlist(p, cancels)
 	if len(activeEntries) > 0 {
-		if e.requestRecorder.IsFull() {
+		if e.peerRequestQueue.TaskLength() > sendTicketThreshold {
+			log.Debug("Solve wantlist: peerRequestQueue is full. Create tickets.")
 			tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
 			activeTickets = append(activeTickets, tmptickets...)
 		}else{
+			log.Debug("Solve wantlist: peerRequestQueue has space. Add tasks block.")
 			e.peerRequestQueue.PushBlock(p, activeEntries...)
 			//e.requestRecorder.BlockAdd(len(activeEntries), msgSize)
 		}
@@ -725,12 +731,14 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
             t, ok := tmpticketsmap[c]
             if ok {
 			    // The tmpticket's timestamp will be set to current time by CreateBasicTicket
+				log.Debugf("not have block but have tickets for %s", c)
 			    tmpticket := tickets.CreateBasicTicket(p, t.Cid(), t.GetSize())
 			    if t.TimeStamp() > tmpticket.TimeStamp() {
 				    tmpticket.SetTimeStamp(t.TimeStamp())
 			    }
 			    activeTickets = append(activeTickets, tmpticket)
             } else {
+				log.Debugf("neither have block nor tickets for %s . append to cached wantlist", c)
                 unhandledWantlist = append(unhandledWantlist, c)
             }
 		}

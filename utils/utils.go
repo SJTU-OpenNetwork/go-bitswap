@@ -8,6 +8,7 @@ import (
 var coreLogSystems = []string{
 	"hon.bitswap",
 	"hon.engine",
+	"hon.linkedTicketStore",
 }
 
 type Loggable interface{

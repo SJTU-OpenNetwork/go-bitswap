@@ -5,6 +5,7 @@ package bitswap
 import (
 	"context"
 	"errors"
+	"github.com/SJTU-OpenNetwork/go-bitswap/utils"
 	"sync"
 	"time"
 
@@ -96,6 +97,10 @@ func New(parent context.Context, network bsnet.BitSwapNetwork,
 	// FIXME(btc) Now that bitswap manages itself using a process, it probably
 	// shouldn't accept a context anymore. Clients should probably use Close()
 	// exclusively. We should probably find another way to share logging data
+
+	//Set log to debug
+	utils.SetCoreLogLevel("DEBUG")
+
 	ctx, cancelFunc := context.WithCancel(parent)
 	ctx = metrics.CtxSubScope(ctx, "bitswap")
 	dupHist := metrics.NewCtx(ctx, "recv_dup_blocks_bytes", "Summary of duplicate"+

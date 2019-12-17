@@ -39,7 +39,7 @@ func getVirtualNetwork() tn.Network {
 func TestLogging(t *testing.T) {
 	//loggers := utils.GetLogSystems()
 	//logging.SetLogLevel("hon.engine", "DEBUG")
-	utils.SetCoreLogLevel("WARNING")
+	utils.SetCoreLogLevel("DEBUG")
 	decision.LogTest()
 	//t.Log(loggers)
 }
