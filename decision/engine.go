@@ -900,15 +900,31 @@ func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets
 
 func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
 	work := false
-	//blocksizes := e.bsm.getBlockSizes(ctx, ks)
+	blocksizes := e.bsm.getBlockSizes(ctx, ks)
+	activeTickets := make([]tickets.Ticket, 0)
 	for _, l := range e.ledgerMap {
 		l.lk.Lock()
 		for _, k := range ks {
 			if entry, ok := l.WantListContains(k); ok {
-				e.peerRequestQueue.PushBlock(l.Partner, peertask.Task{
-					Identifier: entry.Cid,
-					Priority:   entry.Priority,
-				})
+				blockSize, ok := blocksizes[k]
+				if !ok {
+					blockSize = defaultBlockSize
+				}
+				if(e.peerRequestQueue.TaskLength() > sendTicketThreshold){	//We do not have enough network resources. Send tickets instead of send the block
+					//Create ticket
+					tmpticket := tickets.CreateBasicTicket(l.Partner, entry.Cid, int64(blockSize))
+					//tmptickets := createTicketsFromEntry(l.Partner, entry.Cid, blockSizes)
+					activeTickets = append(activeTickets, tmpticket)
+				} else {
+					e.peerRequestQueue.PushBlock(l.Partner, peertask.Task{
+						Identifier: entry.Cid,
+						Priority:   entry.Priority,
+					})
+					//e.peerRequestQueue.PushBlock(p, activeEntries...)
+					//e.requestRecorder.BlockAdd(len(activeEntries), msgSize+blockSize)
+				}
+
+
 				//blocksize, ok := blocksizes[entry.Cid]
 				//if ok {
 				//	e.requestRecorder.BlockAdd(1, blocksize)
@@ -933,6 +949,9 @@ func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
 		//}
         work = true
 	}
+
+	// send blocks or tickets if they are in cached wantlist
+
 
 	if work {
 		e.signalNewWork()
