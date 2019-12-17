@@ -21,21 +21,10 @@ type TicketTask struct{
 type TicketStore interface{
 	AddTicket(ticket Ticket) error // called after sending a ticket
 	AddTickets(ticket []Ticket) error
-	GetTickets(cid cid.Cid) ([]Ticket, error)
-	//GetTicketsByCids(cids []cid.Cid) (map[cid.Cid] []Ticket, error)
-	RemoveTicket(pid peer.ID, cid cid.Cid) error // remove a specific ticket from the `sended ticket list`, called after receive a reject
-	//RemoveTicketEqualsTo(ticket Ticket)
-	Clean()
-	//RemoveCanceled() int
-	//PopTickets() *TicketTask
-
-	TicketNumber() int
-	TicketSize() int64
-	//StoreType()
-
-	// Interfaces for sending tickets - Add by Jerry
     RemoveTickets(pid peer.ID, cids []cid.Cid) error // remove a set of tickets from the `sended ticket list`
-	PrepareSending(acks []TicketAck) error // called if don't have corresponding block when receiving an ACK, put the entry on a list
+    AlreadySent(pid peer.ID, cid cid.Cid) bool
+
+    PrepareSending(acks []TicketAck) error // called if don't have corresponding block when receiving an ACK, put the entry on a list
 	RemoveSendingTasks(pid peer.ID, cids []cid.Cid) error // remove a specific task from the `prepared sending task list`, called after receive a reject
 	PopSendingTasks(cids []cid.Cid) ([]TicketAck, error) // pop all tasks for a specific cid in `prepared sending task list`, called when a block is received
 	PredictTime() int64 // Get the predicted time used to complete all the tickets sent. Return time in millsecond
@@ -49,4 +38,17 @@ type TicketStore interface{
     SendTicketAcks(acks []TicketAck, pid peer.ID)
 
     Loggable
+
+    //Unused
+	//RemoveTicketEqualsTo(ticket Ticket)
+	//RemoveCanceled() int
+	//PopTickets() *TicketTask
+	//TicketNumber() int
+	//TicketSize() int64
+	//GetTicketsByCids(cids []cid.Cid) (map[cid.Cid] []Ticket, error)
+	//StoreType()
+	//Clean()
+	RemoveTicket(pid peer.ID, cid cid.Cid) error // remove a specific ticket from the `sended ticket list`, called after receive a reject
+	//GetTicket(cid cid.Cid, pid peer.ID) (Ticket, error)
+	//GetTickets(cid cid.Cid) ([]Ticket, error)
 }

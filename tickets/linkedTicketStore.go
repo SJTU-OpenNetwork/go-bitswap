@@ -48,6 +48,7 @@ type PeerHandler interface {
 // TODO: Make linkedTicketStore support both send and recv ticket
 type linkedTicketStore struct{
 	mutex sync.Mutex
+    receiveTicketLock sync.Mutex
 	//creater peer.ID
 	storeNumber int
 	storeSize int64
@@ -166,9 +167,41 @@ func (s *linkedTicketStore) TicketExists(pid peer.ID, cid cid.Cid) bool {
 	}
 }
 
+func (s *linkedTicketStore) AlreadySent(pid peer.ID, cid cid.Cid) bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+    tmpmap, ok := s.dataTracker[cid]
+	if(ok){
+		_, ok := tmpmap[pid]
+        if ok {
+            return true
+        }
+	}
+
+    for cur:= s.prepareSendingList.Front(); cur!=nil; cur=cur.Next(){
+        ack, ok := cur.Value.(TicketAck)
+        if !ok {
+            continue
+        }
+        if ack.Cid() == cid && ack.Receiver() == pid {
+            return true
+        }
+    }
+    return false
+}
+
 func (s *linkedTicketStore) GetTickets(cid cid.Cid) ([]Ticket, error){
 	return nil, nil
 }
+
+//func (s *linkedTicketStore) GetTicket(cid cid.Cid, pid peer.ID) Ticket{
+//    element := s.dataTracker[cid][pid]
+//    if element != nil {
+//        return element.Value
+//    }
+//	return nil
+//}
 
 func (s *linkedTicketStore) RemoveTicket(pid peer.ID, cid cid.Cid) error{
 	s.mutex.Lock()
@@ -311,8 +344,8 @@ func (s *linkedTicketStore) PopSendingTasks(cids []cid.Cid) ([]TicketAck, error)
 }
 
 func (s *linkedTicketStore) StoreReceivedTickets(tickets []Ticket) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.receiveTicketLock.Lock()
+	defer s.receiveTicketLock.Unlock()
 
     for _, ticket := range tickets {
         s.receivedTickets[ticket.Cid()] = ticket
@@ -321,8 +354,8 @@ func (s *linkedTicketStore) StoreReceivedTickets(tickets []Ticket) error {
 }
 
 func (s *linkedTicketStore) GetReceivedTicket(cids []cid.Cid) (map[cid.Cid] Ticket, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.receiveTicketLock.Lock()
+	defer s.receiveTicketLock.Unlock()
 
 	ticketMap := make(map[cid.Cid] Ticket)
     for _, cid := range cids {
@@ -396,6 +429,7 @@ func (s *linkedTicketStore) LoggableFull() map[string] interface{}{
 func (s *linkedTicketStore) SendTickets(tickets []Ticket, pid peer.ID) {
     var pids = []peer.ID{pid}
     s.peerManager.SendTicketMessage(tickets, pids)
+    s.AddTickets(tickets)
 }
 
 func (s *linkedTicketStore) SendTicketAcks(acks []TicketAck, pid peer.ID) {

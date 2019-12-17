@@ -95,7 +95,7 @@ const (
 	defaultRequestSizeCapacity = 128 * 512 * 1024
 	defaultBlockSize = 512
 
-    sendTicketThreshold = 10
+    sendTicketThreshold = 30
 )
 
 var (
@@ -636,6 +636,9 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			//e.requestRecorder.RemoveTask()
 		} else {
 			log.Debugf("%s wants %s - %d", p, entry.Cid, entry.Priority)
+            if e.ticketStore.AlreadySent(p, entry.Cid) {
+                continue
+            }
 			l.Wants(entry.Cid, entry.Priority)
 			blockSize, ok := blockSizes[entry.Cid]
 			if ok {
@@ -667,6 +670,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			}
 		}
 	}
+    e.ticketStore.RemoveTickets(p, cancels)
     e.ticketStore.RemoveSendingTasks(p, cancels)
 	if len(activeEntries) > 0 {
 		if e.requestRecorder.IsFull() {
@@ -745,6 +749,7 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
 	ticketMap := make(map[cid.Cid] tickets.Ticket)
     rejectsMap := make(map[peer.ID] []tickets.Ticket)
     acceptsMap := make(map[peer.ID] []tickets.Ticket)
+    var newTickets []tickets.Ticket
 
     for _, ticket := range tks {
         cids = append(cids, ticket.Cid())
@@ -775,6 +780,7 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
             }
         } else {
             acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
+            newTickets = append(newTickets, nt)
         }
     }
     for p, rejects := range rejectsMap {
@@ -786,7 +792,10 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
         //accept acceptsMap[reject]
         //e.SendTicketAcks(p, tickets.GetAcceptAcks(p, accept))
 		e.ticketStore.SendTicketAcks(tickets.GetAcceptAcks(p, accepts), p)
+        e.ticketStore.StoreReceivedTickets(accepts)
     }
+
+    // TODO: now I reveive a lot of new tickets, I may missed a lot wantlists
 
 }
 
@@ -808,7 +817,7 @@ func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets
 	}
     // handle reject Acks
     e.ticketStore.RemoveSendingTasks(p, rejects)
-	e.ticketStore.RemoveTickets(p, rejects)
+	//e.ticketStore.RemoveTickets(p, rejects)
 
     // handle accept Acks
 	var activeEntries []peertask.Task
