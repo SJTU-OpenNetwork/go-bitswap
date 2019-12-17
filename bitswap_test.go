@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/SJTU-OpenNetwork/go-bitswap/utils"
 	"sync"
 	"testing"
 	"time"
@@ -33,6 +34,14 @@ const kNetworkDelay = 0 * time.Millisecond
 
 func getVirtualNetwork() tn.Network {
 	return tn.VirtualNetwork(mockrouting.NewServer(), delay.Fixed(kNetworkDelay))
+}
+
+func TestLogging(t *testing.T) {
+	//loggers := utils.GetLogSystems()
+	//logging.SetLogLevel("hon.engine", "DEBUG")
+	utils.SetCoreLogLevel("WARNING")
+	decision.LogTest()
+	//t.Log(loggers)
 }
 
 func TestClose(t *testing.T) {

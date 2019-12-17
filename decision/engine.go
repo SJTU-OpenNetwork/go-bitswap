@@ -56,6 +56,12 @@ import (
 
 var log = logging.Logger("hon.engine")
 
+func LogTest(){
+	log.Warning("WARNING")
+	log.Info("INFO")
+	log.Debug("DEBUG")
+}
+
 const (
 	// outboxChanBuffer must be 0 to prevent stale messages from being sent
 	outboxChanBuffer = 0
@@ -205,7 +211,7 @@ func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger,
 			maxSize:defaultRequestSizeCapacity,
 		},
         ticketStore:     ts,
-        peerWantlistMap: make(map[cid.Cid] *list.List),
+        //peerWantlistMap: make(map[cid.Cid] *list.List),
 	}
 	e.tagQueued = fmt.Sprintf(tagFormat, "queued", uuid.New().String())
 	e.tagUseful = fmt.Sprintf(tagFormat, "useful", uuid.New().String())

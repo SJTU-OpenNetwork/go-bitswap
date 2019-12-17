@@ -28,6 +28,7 @@ require (
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/multiformats/go-multiaddr v0.1.2
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
+	github.com/whyrusleeping/go-logging v0.0.0-20170515211332-0457bb6b88fc
 )
 
 go 1.12
