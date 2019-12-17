@@ -415,7 +415,19 @@ func (e *Engine) getTimeDuration() int64{
 	return e.requestRecorder.PredictTimeByNumOfTasks(numOfTasks) + e.ticketStore.PredictTime()
 }
 
+/*
+ * Set timestamp for tickets
+ * It will add the timeduration on original timestamp.
+ * Make sure to call this func ONCE AND ONLY ONCE before sending them.
+ */
+func (e *Engine) setTimeStamp(ts []tickets.Ticket) {
+	for _, t := range(ts){
+		t.SetTimeStamp(t.TimeStamp() + e.getTimeDuration())
+	}
+}
+
 //TODO: channel may be blocked if there is too more tickets to send. Try to send it using some kind of queue
+//desperate
 func (e *Engine) SendTickets(target peer.ID, tickets []tickets.Ticket) {
 	//1. Build Envelope
 	//Envelope:
@@ -717,7 +729,8 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		}
 	}
 	//e.SendTickets(p, activeTickets)
-    e.storeUnhandledWantlist(p, unhandledWantlist)
+    e.storeUnhandledWantlist(unhandledWantlist, p)
+	e.setTimeStamp(activeTickets)
 	e.ticketStore.SendTickets(activeTickets, p)
 
 	// Receive blocks
