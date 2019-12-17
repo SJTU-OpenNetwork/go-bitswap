@@ -405,6 +405,7 @@ func (e *Engine) getTimeDuration() int64{
 }
 
 //TODO: channel may be blocked if there is too more tickets to send. Try to send it using some kind of queue
+//desperate
 func (e *Engine) SendTickets(target peer.ID, tickets []tickets.Ticket) {
 	//1. Build Envelope
 	//Envelope:

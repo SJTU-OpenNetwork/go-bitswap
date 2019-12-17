@@ -13,7 +13,7 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
 
-var log = logging.Logger("bitswap")
+var log = logging.Logger("hon.bitswap")
 
 const (
 	defaultRebroadcastInterval = 30 * time.Second
