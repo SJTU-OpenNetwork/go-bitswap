@@ -102,7 +102,7 @@ const (
 	defaultRequestSizeCapacity = 128 * 512 * 1024
 	defaultBlockSize = 512
 
-    sendTicketThreshold = 30
+    sendTicketThreshold = 0 // always send the ticket first? 
 )
 
 var (
