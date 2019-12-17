@@ -7,7 +7,7 @@ import (
 	"github.com/SJTU-OpenNetwork/go-bitswap/tickets"
 	"sync"
 	"time"
-    "container/list"
+    //"container/list"
 
 	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
 	"github.com/SJTU-OpenNetwork/go-bitswap/utils"
@@ -131,11 +131,12 @@ type PeerTagger interface {
 	UntagPeer(p peer.ID, tag string)
 }
 
-type PeerWantlistEntry struct {
-    timestamp int64
-    pid peer.ID
-    //wl.Entry
-}
+// Unused! 
+//type PeerWantlistEntry struct {
+//    timestamp int64
+//    pid peer.ID
+//    //wl.Entry
+//}
 
 // Engine manages sending requested blocks to peers.
 type Engine struct {
@@ -180,8 +181,8 @@ type Engine struct {
 	taskWorkerLock  sync.Mutex
 	taskWorkerCount int
 
-    peerWantlistMap map[cid.Cid] *list.List
-    peerWantlistLock sync.Mutex
+    //peerWantlistMap map[cid.Cid] *list.List
+    //peerWantlistLock sync.Mutex
 }
 
 // NewEngine creates a new block sending engine for the given block store
@@ -695,7 +696,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 	}
     e.ticketStore.RemoveTickets(p, cancels)
     e.ticketStore.RemoveSendingTasks(p, cancels)
-    e.unstoreWantlist(p, cancels)
+    //e.unstoreWantlist(p, cancels)
 	if len(activeEntries) > 0 {
 		if e.requestRecorder.IsFull() {
 			tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
@@ -729,7 +730,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		}
 	}
 	//e.SendTickets(p, activeTickets)
-    e.storeUnhandledWantlist(unhandledWantlist, p)
+    //e.storeUnhandledWantlist(unhandledWantlist, p)
 	e.setTimeStamp(activeTickets)
 	e.ticketStore.SendTickets(activeTickets, p)
 
@@ -776,21 +777,36 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 //	}
 //}
 
-func (e *Engine) storeUnhandledWantlist(wl []cid.Cid, p peer.ID) {
-    e.peerWantlistLock.Lock()
-    defer e.peerWantlistLock.Unlock()
-
-    for _, c := range wl {
-        _, ok := e.peerWantlistMap[c]
-        if !ok {
-            e.peerWantlistMap[c] = list.New()
-        }
-        var newEntry PeerWantlistEntry
-        newEntry.timestamp = time.Now().UnixNano()
-        newEntry.pid = p
-        e.peerWantlistMap[c].PushBack(newEntry)
-    }
-}
+//func (e *Engine) storeUnhandledWantlist(wl []cid.Cid, p peer.ID) {
+//    e.peerWantlistLock.Lock()
+//    defer e.peerWantlistLock.Unlock()
+//
+//    for _, c := range wl {
+//        _, ok := e.peerWantlistMap[c]
+//        if !ok {
+//            e.peerWantlistMap[c] = list.New()
+//        }
+//        var newEntry PeerWantlistEntry
+//        newEntry.timestamp = time.Now().UnixNano()
+//        newEntry.pid = p
+//        e.peerWantlistMap[c].PushBack(newEntry)
+//    }
+//}
+//
+//func (e *Engine) unstoreWantlist(wl []cid.Cid, p peer.ID) {
+//    e.peerWantlistLock.Lock()
+//    defer e.peerWantlistLock.Unlock()
+//
+//    for _, c := range wl {
+//        _, ok := e.peerWantlistMap[c]
+//        if !ok {
+//            continue
+//        }
+//        for cur:= e.peerWantlistMap[c].Front(); cur!=nil; cur=cur.Next() {
+//            entry = cur
+//        }
+//    }
+//}
 
 func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Ticket) {
 	var cids, noblocks []cid.Cid
