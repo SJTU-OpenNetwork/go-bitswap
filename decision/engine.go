@@ -7,6 +7,7 @@ import (
 	"github.com/SJTU-OpenNetwork/go-bitswap/tickets"
 	"sync"
 	"time"
+    "container/list"
 
 	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
 	"github.com/SJTU-OpenNetwork/go-bitswap/utils"
@@ -130,6 +131,12 @@ type PeerTagger interface {
 	UntagPeer(p peer.ID, tag string)
 }
 
+type PeerWantlistEntry struct {
+    timestamp int64
+    pid peer.ID
+    //wl.Entry
+}
+
 // Engine manages sending requested blocks to peers.
 type Engine struct {
 	// peerRequestQueue is a priority queue of requests received from peers.
@@ -172,6 +179,9 @@ type Engine struct {
 
 	taskWorkerLock  sync.Mutex
 	taskWorkerCount int
+
+    peerWantlistMap map[cid.Cid] *list.List
+    peerWantlistLock sync.Mutex
 }
 
 // NewEngine creates a new block sending engine for the given block store
@@ -194,6 +204,7 @@ func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger,
 			maxSize:defaultRequestSizeCapacity,
 		},
         ticketStore:     ts,
+        peerWantList:    make(map[cid.Cid] *list.List)
 	}
 	e.tagQueued = fmt.Sprintf(tagFormat, "queued", uuid.New().String())
 	e.tagUseful = fmt.Sprintf(tagFormat, "useful", uuid.New().String())
@@ -686,19 +697,26 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 	// TODO: This is an Error!!!!! We should not directly forward the received tickets !!!! - Riften
 	//		For now, we directly add the remaining time on timestamp of received tickets
 	tmpticketsmap, err := e.ticketStore.GetReceivedTicket(queryCids)
+    var unhandledWantlist []cid.Cid
 	if err != nil {
 		log.Error(err)
 	} else {
-		for _, t := range tmpticketsmap{
-			// The tmpticket's timestamp will be set to current time by CreateBasicTicket
-			tmpticket := tickets.CreateBasicTicket(p, t.Cid(), t.GetSize())
-			if t.TimeStamp() > tmpticket.TimeStamp() {
-				tmpticket.SetTimeStamp(t.TimeStamp())
-			}
-			activeTickets = append(activeTickets, tmpticket)
+		for _, c := range queryCids{
+            t, ok = tmpticketsmap[c]
+            if ok {
+			    // The tmpticket's timestamp will be set to current time by CreateBasicTicket
+			    tmpticket := tickets.CreateBasicTicket(p, t.Cid(), t.GetSize())
+			    if t.TimeStamp() > tmpticket.TimeStamp() {
+				    tmpticket.SetTimeStamp(t.TimeStamp())
+			    }
+			    activeTickets = append(activeTickets, tmpticket)
+            } else {
+                unhandledWantlist = append(unhandledWantlist, c)
+            }
 		}
 	}
 	//e.SendTickets(p, activeTickets)
+    e.storeUnhandledWantlist(unhandledWantlist, p)
 	e.ticketStore.SendTickets(activeTickets, p)
 
 	// Receive blocks
@@ -743,6 +761,18 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 //		e.peerRequestQueue.PushBlock(p, activeEntries...)
 //	}
 //}
+
+func (e *Engine) storeUnhandledWantlist(wl []cid.Cid, p peer.ID) {
+    e.peerWantlistLock.Lock()
+    defer e.peerWantlistLock.Unlock()
+
+    for _, c := range wl {
+        tmpList, ok := e.peerWantlist[c]
+        if !ok {
+            s.
+        }
+    }
+}
 
 func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Ticket) {
 	var cids, noblocks []cid.Cid
