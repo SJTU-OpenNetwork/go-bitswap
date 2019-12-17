@@ -167,7 +167,7 @@ func (s *linkedTicketStore) TicketExists(pid peer.ID, cid cid.Cid) bool {
 	}
 }
 
-func (s *linkedTicketStore) AlreadySent(pid peer.ID, cid cid.Cid) bool {
+func (s *linkedTicketStore) IsSending(pid peer.ID, cid cid.Cid) bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

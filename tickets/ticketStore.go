@@ -22,7 +22,7 @@ type TicketStore interface{
 	AddTicket(ticket Ticket) error // called after sending a ticket
 	AddTickets(ticket []Ticket) error
     RemoveTickets(pid peer.ID, cids []cid.Cid) error // remove a set of tickets from the `sended ticket list`
-    AlreadySent(pid peer.ID, cid cid.Cid) bool
+    IsSending(pid peer.ID, cid cid.Cid) bool
 
     PrepareSending(acks []TicketAck) error // called if don't have corresponding block when receiving an ACK, put the entry on a list
 	RemoveSendingTasks(pid peer.ID, cids []cid.Cid) error // remove a specific task from the `prepared sending task list`, called after receive a reject

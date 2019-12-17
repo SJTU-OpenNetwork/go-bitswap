@@ -435,54 +435,54 @@ func (e *Engine) setTimeStamp(ts []tickets.Ticket) {
 
 //TODO: channel may be blocked if there is too more tickets to send. Try to send it using some kind of queue
 //desperate
-func (e *Engine) SendTickets(target peer.ID, tickets []tickets.Ticket) {
-	//1. Build Envelope
-	//Envelope:
-	//	- Peer: the target send ticket to
-	//	- Message: the message contains the tickets
-	//	- Sent: the call back func called when sending complete
-	//
-	//2. Send envelope to outbox
-	timeDuration := e.getTimeDuration()
-	for _, t := range(tickets){
-		t.SetTimeStamp(t.TimeStamp() + timeDuration)
-	}
-
-	msg := bsmsg.New(false)
-	msg.AddTickets(tickets)
-	if msg.Empty(){
-		return
-	}
-	envelope := &Envelope{
-		Peer:    target,
-		Message: msg,
-		Sent:    func(){
-			e.ticketStore.AddTickets(tickets)
-		},
-	}
-
-	log.Debugf("Put tickets to channel %d/%d", len(e.ticketOutbox), ticketOutboxChanBuffer)
-	e.ticketOutbox <- envelope
-}
-
-func (e *Engine) SendTicketAcks(target peer.ID, ticketAcks []tickets.TicketAck) {
-	msg := bsmsg.New(false)
-	msg.AddTicketAcks(ticketAcks)
-	if msg.Empty(){
-		return
-	}
-	envelope := &Envelope{
-		Peer:	target,
-		Message: msg,
-		Sent:	func(){
-			//TODO: Whether we need to store the acks sent??
-			//		Do nothing for now.
-		},
-	}
-
-	log.Debugf("Put ticket acks to channel %d/%d", len(e.ticketAckOutbox), ticketAckOutboxChanBuffer)
-	e.ticketAckOutbox <- envelope
-}
+//func (e *Engine) SendTickets(target peer.ID, tickets []tickets.Ticket) {
+//	//1. Build Envelope
+//	//Envelope:
+//	//	- Peer: the target send ticket to
+//	//	- Message: the message contains the tickets
+//	//	- Sent: the call back func called when sending complete
+//	//
+//	//2. Send envelope to outbox
+//	timeDuration := e.getTimeDuration()
+//	for _, t := range(tickets){
+//		t.SetTimeStamp(t.TimeStamp() + timeDuration)
+//	}
+//
+//	msg := bsmsg.New(false)
+//	msg.AddTickets(tickets)
+//	if msg.Empty(){
+//		return
+//	}
+//	envelope := &Envelope{
+//		Peer:    target,
+//		Message: msg,
+//		Sent:    func(){
+//			e.ticketStore.AddTickets(tickets)
+//		},
+//	}
+//
+//	log.Debugf("Put tickets to channel %d/%d", len(e.ticketOutbox), ticketOutboxChanBuffer)
+//	e.ticketOutbox <- envelope
+//}
+//
+//func (e *Engine) SendTicketAcks(target peer.ID, ticketAcks []tickets.TicketAck) {
+//	msg := bsmsg.New(false)
+//	msg.AddTicketAcks(ticketAcks)
+//	if msg.Empty(){
+//		return
+//	}
+//	envelope := &Envelope{
+//		Peer:	target,
+//		Message: msg,
+//		Sent:	func(){
+//			//TODO: Whether we need to store the acks sent??
+//			//		Do nothing for now.
+//		},
+//	}
+//
+//	log.Debugf("Put ticket acks to channel %d/%d", len(e.ticketAckOutbox), ticketAckOutboxChanBuffer)
+//	e.ticketAckOutbox <- envelope
+//}
 //func (e *Engine) nextTicketEnvelope(ctx context.Context) (*Envelope, error) {
 //	for {
 //		nextTask := e.ticketStore.PopTickets()
@@ -666,7 +666,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			//e.requestRecorder.RemoveTask()
 		} else {
 			log.Debugf("%s wants %s - %d", p, entry.Cid, entry.Priority)
-            if e.ticketStore.AlreadySent(p, entry.Cid) {
+            if e.ticketStore.IsSending(p, entry.Cid) {
                 continue
             }
 			l.Wants(entry.Cid, entry.Priority)
@@ -874,7 +874,22 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
     }
 
     // TODO: now I reveive a lot of new tickets, I may missed a lot wantlists
-
+	for _, l := range e.ledgerMap {
+		l.lk.Lock()
+	    activeTickets := make([]tickets.Ticket, 0)
+        for _, ticket := range newTickets {
+            k := ticket.Cid()
+			if entry, ok := l.WantListContains(k); ok {
+                if e.ticketStore.IsSending(l.Partner, k) {
+                    continue
+                }
+				tmpticket := tickets.CreateBasicTicket(l.Partner, entry.Cid, ticket.GetSize())
+				activeTickets = append(activeTickets, tmpticket)
+			}
+		}
+        e.ticketStore.SendTickets(activeTickets, l.Partner)
+		l.lk.Unlock()
+    }
 }
 
 func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets.TicketAck) bool {
@@ -931,11 +946,14 @@ func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets
 func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
 	work := false
 	blocksizes := e.bsm.getBlockSizes(ctx, ks)
-	activeTickets := make([]tickets.Ticket, 0)
 	for _, l := range e.ledgerMap {
 		l.lk.Lock()
+	    activeTickets := make([]tickets.Ticket, 0)
 		for _, k := range ks {
 			if entry, ok := l.WantListContains(k); ok {
+                if e.ticketStore.IsSending(l.Partner, k) {
+                    continue
+                }
 				blockSize, ok := blocksizes[k]
 				if !ok {
 					blockSize = defaultBlockSize
@@ -950,19 +968,11 @@ func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
 						Identifier: entry.Cid,
 						Priority:   entry.Priority,
 					})
-					//e.peerRequestQueue.PushBlock(p, activeEntries...)
-					//e.requestRecorder.BlockAdd(len(activeEntries), msgSize+blockSize)
+				    work = true
 				}
-
-
-				//blocksize, ok := blocksizes[entry.Cid]
-				//if ok {
-				//	e.requestRecorder.BlockAdd(1, blocksize)
-				//}
-				//e.requestRecorder.BlockAdd(1, e.bsm.getBlockSizes())
-				work = true
 			}
 		}
+        e.ticketStore.SendTickets(activeTickets, l.Partner)
 		l.lk.Unlock()
 	}
 
@@ -973,16 +983,8 @@ func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
             Identifier: ack.Cid(),
             Priority: 10000, // how to set the priority?
         })
-		//blocksize, ok := blocksizes[ack.Cid()]
-		//if ok {
-		//	e.requestRecorder.BlockAdd(1, blocksize)
-		//}
         work = true
 	}
-
-	// send blocks or tickets if they are in cached wantlist
-
-
 	if work {
 		e.signalNewWork()
 	}
