@@ -635,13 +635,15 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
 	// receive wantlist
 	entries := m.Wantlist()
-	wantKs := cid.NewSet()
-	cancelKs = cid.NewSet()
+	var wantEntries []bsmsg.Entry
+    cancelKs := cid.NewSet()
+    wantKs := cid.NewSet()
 	for _, entry := range entries {
 		if entry.Cancel {
 			cancelKs.Add(entry.Cid)
 		} else {
-			wantKs.Add(entry.Cid)
+            wantKs.Add(entry.Cid)
+			wantEntries = append(wantEntries, entry)
 		}
 	}
 
@@ -654,7 +656,8 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
     e.handleCancelWantlist(cancelKs.Keys(), l)
 
     // handle want keys
-    e.handleNewWantlist(wantKs.Keys(), l)
+    w := e.handleNewWantlist(wantKs.Keys(), wantEntries, l, ctx)
+    newWorkExists = newWorkExists || w
 	
 	// Receive blocks
 	blockCids := make([]cid.Cid, 0)
@@ -673,7 +676,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 	// Receive Ticket Acks - Jerry 2019/12/14
 	acks := m.TicketAcks()
     if acks != nil {
-        w := e.handleTicketAcks(ctx, p, acks)
+        w = e.handleTicketAcks(ctx, p, acks)
         newWorkExists = newWorkExists || w
     }
 
@@ -681,24 +684,28 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
     log.Debug("Ticket Store State:\n", utils.Loggable2json(e.ticketStore))
 }
 
-func (e *Engine) handleCancelWantlist(cids []cid.Cid, l ledger) {
+func (e *Engine) handleCancelWantlist(cids []cid.Cid, l *ledger) {
 	p := l.Partner
 
-	for cid := range cids {
+	for _, cid := range cids {
 		l.CancelWant(cid)
 		e.peerRequestQueue.Remove(cid, p)
 	}
-	l.lk.UnLock()
 
 	e.ticketStore.RemoveSendingTasks(p, cids)
 	e.ticketStore.RemoveTickets(p, cids)
 }
 
-func (e *Engine) handleNewWantlist(cids []cid.Cid, l ledger) {
+func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *ledger, ctx context.Context) bool {
 	p := l.Partner
-	blockSizes := e.bsm.getBlockSizes(ctx, wantKs.Keys())
+	blockSizes := e.bsm.getBlockSizes(ctx, wantKs)
 	msgSize := 0
-	for _, cid := range cids {
+	newWorkExists := false
+	var activeEntries []peertask.Task
+    var queryCids []cid.Cid
+    var activeTickets []tickets.Ticket
+
+	for _, entry := range entries {
         if e.ticketStore.IsSending(p, entry.Cid) {
             continue
         }
@@ -765,6 +772,7 @@ func (e *Engine) handleNewWantlist(cids []cid.Cid, l ledger) {
 	}
 	e.setTimeStamp(activeTickets)
 	e.ticketStore.SendTickets(activeTickets, p)
+    return newWorkExists
 }
 
 func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Ticket) {
