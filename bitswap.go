@@ -5,7 +5,6 @@ package bitswap
 import (
 	"context"
 	"errors"
-	"github.com/SJTU-OpenNetwork/go-bitswap/utils"
 	"sync"
 	"time"
 
@@ -23,8 +22,8 @@ import (
 	bssession "github.com/SJTU-OpenNetwork/go-bitswap/session"
 	bssm "github.com/SJTU-OpenNetwork/go-bitswap/sessionmanager"
 	bsspm "github.com/SJTU-OpenNetwork/go-bitswap/sessionpeermanager"
-	bswm "github.com/SJTU-OpenNetwork/go-bitswap/wantmanager"
 	"github.com/SJTU-OpenNetwork/go-bitswap/tickets"
+	bswm "github.com/SJTU-OpenNetwork/go-bitswap/wantmanager"
 	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
@@ -99,7 +98,7 @@ func New(parent context.Context, network bsnet.BitSwapNetwork,
 	// exclusively. We should probably find another way to share logging data
 
 	//Set log to debug
-	utils.SetCoreLogLevel("ERROR")
+	//utils.SetCoreLogLevel("DEBUG")
 
 	ctx, cancelFunc := context.WithCancel(parent)
 	ctx = metrics.CtxSubScope(ctx, "bitswap")
