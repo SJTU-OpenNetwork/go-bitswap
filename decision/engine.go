@@ -633,78 +633,101 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		}
 	}()
 
-	// Get block sizes
+	// receive wantlist
 	entries := m.Wantlist()
 	wantKs := cid.NewSet()
+	cancelKs = cid.NewSet()
 	for _, entry := range entries {
-		if !entry.Cancel {
+		if entry.Cancel {
+			cancelKs.Add(entry.Cid)
+		} else {
 			wantKs.Add(entry.Cid)
 		}
 	}
-
-	blockSizes := e.bsm.getBlockSizes(ctx, wantKs.Keys())
 
 	l := e.findOrCreate(p)		//Find the ledger
 	l.lk.Lock()
 	if m.Full() {
 		l.wantList = wl.New()
 	}
+    // handle cancel keys
+    e.handleCancelWantlist(cancelKs.Keys(), l)
 
-	var msgSize int
-	var activeEntries []peertask.Task
-	var activeTickets []tickets.Ticket
-	var queryCids []cid.Cid
-    var cancels []cid.Cid
+    // handle want keys
+    e.handleNewWantlist(wantKs.Keys(), l)
+	
+	// Receive blocks
+	blockCids := make([]cid.Cid, 0)
+	for _, block := range m.Blocks() {
+		// log.Debugf("got block %s %d bytes", block, len(block.RawData()))
+		l.ReceivedBytes(len(block.RawData()))
+		blockCids = append(blockCids, block.Cid())
+	}
+	l.lk.Unlock()
 
-	for _, entry := range m.Wantlist() {
-		if entry.Cancel {
-			log.Debugf("%s cancel %s", p, entry.Cid)
-			l.CancelWant(entry.Cid)
-			e.peerRequestQueue.Remove(entry.Cid, p)
-            cancels = append(cancels, entry.Cid)
-			//e.requestRecorder.RemoveTask()
-		} else {
-			log.Debugf("%s wants %s - %d", p, entry.Cid, entry.Priority)
-            if e.ticketStore.IsSending(p, entry.Cid) {
-                continue
-            }
-			l.Wants(entry.Cid, entry.Priority)
-			blockSize, ok := blockSizes[entry.Cid]
-			if ok {
-				// we have the block
-				// although we have the block, but the network resources are limited
-				// I may just send a ticket, which means I will send the block when the 
-				// resources are sufficient - Jerry
-				log.Debugf("have block %s", entry.Cid)
-				newWorkExists = true
-				if msgSize+blockSize > maxMessageSize {
-					//if(e.requestRecorder.IsFull()){	//Old method - estimate task queue through recorder
-					if(e.peerRequestQueue.TaskLength() > sendTicketThreshold){	//We do not have enough network resources. Send tickets instead of send the block
-						//Create ticket
-						log.Debug("Solve wantlist: peerRequestQueue is full. Create tickets.")
-						tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
-						activeTickets = append(activeTickets, tmptickets...)
-					} else {
-						log.Debug("Solve wantlist: peerRequestQueue has space. Add tasks block.")
-						e.peerRequestQueue.PushBlock(p, activeEntries...)
-						//e.requestRecorder.BlockAdd(len(activeEntries), msgSize+blockSize)
-					}
-					activeEntries = []peertask.Task{}
-					msgSize = 0
+    // Receive tickets
+	if m.Tickets() != nil {
+        e.handleTickets(ctx, p, m.Tickets())
+	}
+
+	// Receive Ticket Acks - Jerry 2019/12/14
+	acks := m.TicketAcks()
+    if acks != nil {
+        w := e.handleTicketAcks(ctx, p, acks)
+        newWorkExists = newWorkExists || w
+    }
+
+    // Logcat situation of ticketStore
+    log.Debug("Ticket Store State:\n", utils.Loggable2json(e.ticketStore))
+}
+
+func (e *Engine) handleCancelWantlist(cids []cid.Cid, l ledger) {
+	p := l.Partner
+
+	for cid := range cids {
+		l.CancelWant(cid)
+		e.peerRequestQueue.Remove(cid, p)
+	}
+	l.lk.UnLock()
+
+	e.ticketStore.RemoveSendingTasks(p, cids)
+	e.ticketStore.RemoveTickets(p, cids)
+}
+
+func (e *Engine) handleNewWantlist(cids []cid.Cid, l ledger) {
+	p := l.Partner
+	blockSizes := e.bsm.getBlockSizes(ctx, wantKs.Keys())
+	msgSize := 0
+	for _, cid := range cids {
+        if e.ticketStore.IsSending(p, entry.Cid) {
+            continue
+        }
+		l.Wants(entry.Cid, entry.Priority)
+		blockSize, ok := blockSizes[entry.Cid]
+		if ok {
+			log.Debugf("have block %s", entry.Cid)
+			newWorkExists = true
+			if msgSize+blockSize > maxMessageSize {
+				if(e.peerRequestQueue.TaskLength() > sendTicketThreshold){	//We do not have enough network resources. Send tickets instead of send the block
+					//Create ticket
+					log.Debug("Solve wantlist: peerRequestQueue is full. Create tickets.")
+					tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
+					activeTickets = append(activeTickets, tmptickets...)
+				} else {
+					log.Debug("Solve wantlist: peerRequestQueue has space. Add tasks block.")
+					e.peerRequestQueue.PushBlock(p, activeEntries...)
+					//e.requestRecorder.BlockAdd(len(activeEntries), msgSize+blockSize)
 				}
-				activeEntries = append(activeEntries, peertask.Task{Identifier: entry.Cid, Priority: entry.Priority})
-				msgSize += blockSize
-			} else {
-				// although we do not have the block, but I have the ticket. - Jerry
-				// So I can send a ticket with higher level - Jerry
-				// Judge whether we have the tickets
-				log.Debugf("not have block %s", entry.Cid)
-				queryCids = append(queryCids, entry.Cid)
+				activeEntries = []peertask.Task{}
+				msgSize = 0
 			}
+			activeEntries = append(activeEntries, peertask.Task{Identifier: entry.Cid, Priority: entry.Priority})
+			msgSize += blockSize
+		} else {
+			log.Debugf("not have block %s", entry.Cid)
+			queryCids = append(queryCids, entry.Cid)
 		}
 	}
-    e.ticketStore.RemoveTickets(p, cancels)
-    e.ticketStore.RemoveSendingTasks(p, cancels)
     //e.unstoreWantlist(p, cancels)
 	if len(activeEntries) > 0 {
 		if e.peerRequestQueue.TaskLength() > sendTicketThreshold {
@@ -722,7 +745,6 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 	// TODO: This is an Error!!!!! We should not directly forward the received tickets !!!! - Riften
 	//		For now, we directly add the remaining time on timestamp of received tickets
 	tmpticketsmap, err := e.ticketStore.GetReceivedTicket(queryCids)
-    var unhandledWantlist []cid.Cid
 	if err != nil {
 		log.Error(err)
 	} else {
@@ -738,92 +760,12 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 			    activeTickets = append(activeTickets, tmpticket)
             } else {
 				log.Debugf("neither have block nor tickets for %s . append to cached wantlist", c)
-                unhandledWantlist = append(unhandledWantlist, c)
             }
 		}
 	}
-	//e.SendTickets(p, activeTickets)
-    //e.storeUnhandledWantlist(unhandledWantlist, p)
 	e.setTimeStamp(activeTickets)
 	e.ticketStore.SendTickets(activeTickets, p)
-
-	// Receive blocks
-	blockCids := make([]cid.Cid, 0)
-	for _, block := range m.Blocks() {
-		log.Debugf("got block %s %d bytes", block, len(block.RawData()))
-		l.ReceivedBytes(len(block.RawData()))
-		blockCids = append(blockCids, block.Cid())
-	}
-	l.lk.Unlock()
-
-    // Receive tickets
-	if m.Tickets() != nil {
-        log.Debug("handle ticket")
-        e.handleTickets(ctx, p, m.Tickets())
-	}
-
-    log.Debug("handle ticket finish")
-	// Receive Ticket Acks - Jerry 2019/12/14
-	acks := m.TicketAcks()
-    if acks != nil {
-        log.Debug("handle ticket ack")
-        w := e.handleTicketAcks(ctx, p, acks)
-        newWorkExists = newWorkExists || w
-    }
-
-    // Logcat situation of ticketStore
-    log.Debug("Ticket Store State:\n", utils.Loggable2json(e.ticketStore))
 }
-
-//func (e *Engine) handleReceiveBlocks(cids []cid.Cid) {
-//	acks, _ := e.ticketStore.PopSendingTasks(cids)
-//	var activeEntries []peertask.Task
-//    msgSize := 0
-//	for index, ack := range acks {
-//		blockSize, _ := ack.Size()
-//		if msgSize + blockSize > maxMessageSize {
-//			e.peerRequestQueue.PushBlock(ack.Receiver(), activeEntries...)
-//			activeEntries = []peertask.Task{}
-//			msgSize = 0
-//		}
-//		activeEntries = append(activeEntries, peertask.Task{Identifier:cids[index], Priority:10})
-//		msgSize += blockSize
-//	}
-//	if len(activeEntries) > 0 {
-//		e.peerRequestQueue.PushBlock(p, activeEntries...)
-//	}
-//}
-
-//func (e *Engine) storeUnhandledWantlist(wl []cid.Cid, p peer.ID) {
-//    e.peerWantlistLock.Lock()
-//    defer e.peerWantlistLock.Unlock()
-//
-//    for _, c := range wl {
-//        _, ok := e.peerWantlistMap[c]
-//        if !ok {
-//            e.peerWantlistMap[c] = list.New()
-//        }
-//        var newEntry PeerWantlistEntry
-//        newEntry.timestamp = time.Now().UnixNano()
-//        newEntry.pid = p
-//        e.peerWantlistMap[c].PushBack(newEntry)
-//    }
-//}
-//
-//func (e *Engine) unstoreWantlist(wl []cid.Cid, p peer.ID) {
-//    e.peerWantlistLock.Lock()
-//    defer e.peerWantlistLock.Unlock()
-//
-//    for _, c := range wl {
-//        _, ok := e.peerWantlistMap[c]
-//        if !ok {
-//            continue
-//        }
-//        for cur:= e.peerWantlistMap[c].Front(); cur!=nil; cur=cur.Next() {
-//            entry = cur
-//        }
-//    }
-//}
 
 func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Ticket) {
 	var cids, noblocks []cid.Cid
