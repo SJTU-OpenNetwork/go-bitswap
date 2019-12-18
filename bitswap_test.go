@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/SJTU-OpenNetwork/go-bitswap/utils"
 	"sync"
 	"testing"
 	"time"
@@ -39,7 +38,7 @@ func getVirtualNetwork() tn.Network {
 func TestLogging(t *testing.T) {
 	//loggers := utils.GetLogSystems()
 	//logging.SetLogLevel("hon.engine", "DEBUG")
-	utils.SetCoreLogLevel("DEBUG")
+	//utils.SetCoreLogLevel("DEBUG")
 	decision.LogTest()
 	//t.Log(loggers)
 }
