@@ -381,7 +381,7 @@ func (bs *Bitswap) ReceiveMessage(ctx context.Context, p peer.ID, incoming bsmsg
 
 	// This call records changes to wantlists, blocks received,
 	// and number of bytes transfered.
-	log.Debugf("Receive message from %s", p.String())
+	log.Debugf("[MSGRECV] From %s", p.String())
 	bs.engine.MessageReceived(ctx, p, incoming)
 	// TODO: this is bad, and could be easily abused.
 	// Should only track *useful* messages in ledger
@@ -394,7 +394,7 @@ func (bs *Bitswap) ReceiveMessage(ctx context.Context, p peer.ID, incoming bsmsg
 
 	bs.updateReceiveCounters(iblocks)
 	for _, b := range iblocks {
-		log.Debugf("[recv] block; cid=%s, peer=%s", b.Cid(), p)
+		log.Debugf("[BLKRECV] Cid %s, From %s", b.Cid(), p.String())
 	}
 
 	// Process blocks

@@ -7,10 +7,9 @@ import (
 	"github.com/SJTU-OpenNetwork/go-bitswap/tickets"
 	"sync"
 	"time"
-    //"container/list"
+	//"container/list"
 
 	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
-	"github.com/SJTU-OpenNetwork/go-bitswap/utils"
 	wl "github.com/SJTU-OpenNetwork/go-bitswap/wantlist"
 	"github.com/SJTU-OpenNetwork/go-peertaskqueue"
 	"github.com/SJTU-OpenNetwork/go-peertaskqueue/peertask"
@@ -662,6 +661,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 	// Receive blocks
 	blockCids := make([]cid.Cid, 0)
 	for _, block := range m.Blocks() {
+		// TODO: Whether we need to log here?? - Riften
 		// log.Debugf("got block %s %d bytes", block, len(block.RawData()))
 		l.ReceivedBytes(len(block.RawData()))
 		blockCids = append(blockCids, block.Cid())
@@ -681,7 +681,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
     }
 
     // Logcat situation of ticketStore
-    log.Debug("Ticket Store State:\n", utils.Loggable2json(e.ticketStore))
+    // log.Debug("Ticket Store State:\n", utils.Loggable2json(e.ticketStore))
 }
 
 func (e *Engine) handleCancelWantlist(cids []cid.Cid, l *ledger) {
@@ -690,6 +690,7 @@ func (e *Engine) handleCancelWantlist(cids []cid.Cid, l *ledger) {
 	for _, cid := range cids {
 		l.CancelWant(cid)
 		e.peerRequestQueue.Remove(cid, p)
+		log.Debugf("[BLKCANCEL] Cid %s, From %s", cid.String(), p.String())
 	}
 
 	e.ticketStore.RemoveSendingTasks(p, cids)
@@ -706,6 +707,7 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
     var activeTickets []tickets.Ticket
 
 	for _, entry := range entries {
+		log.Debugf("[WANTRECV] Cid %s, From %s", entry.Cid.String(), p.String())
         if e.ticketStore.IsSending(p, entry.Cid) {
             continue
         }
@@ -718,6 +720,7 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
 				if(e.peerRequestQueue.TaskLength() > sendTicketThreshold){	//We do not have enough network resources. Send tickets instead of send the block
 					//Create ticket
 					log.Debug("Solve wantlist: peerRequestQueue is full. Create tickets.")
+					//log.Debugf("[TKTCREATE] Cid %s, SendTo %s", )
 					tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
 					activeTickets = append(activeTickets, tmptickets...)
 				} else {
@@ -783,6 +786,7 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
     var newTickets []tickets.Ticket
 
     for _, ticket := range tks {
+    	log.Debugf("[TKTRECV] Cid %s, Publisher %s, Receiver %s", ticket.Cid().String(), p.String(), ticket.SendTo().String())
         cids = append(cids, ticket.Cid())
         ticket.SetPublisher(p)
         ticketMap[ticket.Cid()] = ticket
@@ -804,12 +808,16 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
         nt := ticketMap[cid]
         if ok {
             if local.TimeStamp() <= nt.TimeStamp() {
+            	log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s", cid.String(), nt.Publisher(), nt.SendTo())
                 rejectsMap[nt.Publisher()] = append(rejectsMap[nt.Publisher()], nt)
             } else {
+				log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s", cid.String(), local.Publisher(), local.SendTo())
+				log.Debugf("[TKTACCEPT] Cid %s, Publisher %s, Receiver %s", cid.String(), nt.Publisher(), nt.SendTo())
                 rejectsMap[local.Publisher()] = append(rejectsMap[local.Publisher()], local)
                 acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
             }
         } else {
+			log.Debugf("[TKTACCEPT] Cid %s, Publisher %s, Receiver %s", cid.String(), nt.Publisher(), nt.SendTo())
             acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
             newTickets = append(newTickets, nt)
         }
@@ -856,8 +864,10 @@ func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets
     for _, ack := range acks {
 		switch ack.ACK()  {
 		case tickets.ACK_ACCEPT:
+			log.Debugf("[ACKRECV] Cid %s, Publisher %s, Receiver %s, Type ACCEPT", ack.Cid().String(), ack.Publisher().String(), ack.Receiver().String())
 			accepts = append(accepts, ack.Cid())
 		case tickets.ACK_CANCEL:
+			log.Debugf("[ACKRECV] Cid %s, Publisher %s, Receiver %s, Type CANCEL", ack.Cid().String(), ack.Publisher().String(), ack.Receiver().String())
             rejects = append(rejects, ack.Cid())
 		}
 		ackMap[ack.Cid()] = ack

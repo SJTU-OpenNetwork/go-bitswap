@@ -8,9 +8,12 @@ import (
 	wantlist "github.com/SJTU-OpenNetwork/go-bitswap/wantlist"
 
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	logging "github.com/ipfs/go-log"
 )
 
 // PeerQueue provides a queue of messages to be sent for a single peer.
+var log = logging.Logger("hon.peermanager")
+
 type PeerQueue interface {
 	AddMessage(entries []bsmsg.Entry, ses uint64)
 	AddTicketMessage(tickets []tickets.Ticket)
@@ -89,10 +92,16 @@ func (pm *PeerManager) Disconnected(p peer.ID) {
 func (pm *PeerManager) SendMessage(entries []bsmsg.Entry, targets []peer.ID, from uint64) {
 	if len(targets) == 0 {
 		for _, p := range pm.peerQueues {
+			for _, e := range entries {
+				log.Debugf("[WANTSEND] Cid %s, SendTo ALL", e.Cid.String())
+			}
 			p.pq.AddMessage(entries, from)
 		}
 	} else {
 		for _, t := range targets {
+			for _, e := range entries {
+				log.Debugf("[WANTSEND] Cid %s, SendTo %s", e.Cid.String(), t.String())
+			}
 			pqi := pm.getOrCreate(t)
 			pqi.pq.AddMessage(entries, from)
 		}
@@ -105,6 +114,9 @@ func (pm *PeerManager) SendTicketMessage(tickets []tickets.Ticket, targets []pee
 	for _, t := range targets {
 		pqi := pm.getOrCreate(t)
 		pqi.pq.AddTicketMessage(tickets)
+		for _, tk := range tickets {
+			log.Debugf("[TKTSEND] Cid %s, SendTo %s", tk.Cid(), tk.SendTo().String())
+		}
 	}
 }
 
@@ -114,6 +126,9 @@ func (pm *PeerManager) SendTicketAckMessage(acks []tickets.TicketAck, targets []
 	for _, t := range targets {
 		pqi := pm.getOrCreate(t)
 		pqi.pq.AddTicketAckMessage(acks)
+		for _, tk := range acks {
+			log.Debugf("[ACKSEND] Cid %s, Publisher %s, Receiver %s", tk.Cid(), tk.Publisher().String(), tk.Receiver().String())
+		}
 	}
 }
 
