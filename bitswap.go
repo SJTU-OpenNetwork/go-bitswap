@@ -12,6 +12,7 @@ import (
 	delay "github.com/ipfs/go-ipfs-delay"
 
 	decision "github.com/SJTU-OpenNetwork/go-bitswap/decision"
+	//utils "github.com/SJTU-OpenNetwork/go-bitswap/utils"
 	bsgetter "github.com/SJTU-OpenNetwork/go-bitswap/getter"
 	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
 	bsmq "github.com/SJTU-OpenNetwork/go-bitswap/messagequeue"
