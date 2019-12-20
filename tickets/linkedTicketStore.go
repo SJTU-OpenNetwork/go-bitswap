@@ -56,6 +56,7 @@ type linkedTicketStore struct{
 	dataStore map[cid.Cid] *list.List
 	dataTracker map[cid.Cid]map[peer.ID] *list.Element
 	storeType int32
+    sentCounter map[cid.Cid] int
 
     prepareSendingList *list.List
     receivedTickets map[cid.Cid] Ticket
@@ -66,6 +67,7 @@ func NewLinkedTicketStore(pm PeerHandler) *linkedTicketStore{
 	return &linkedTicketStore{
 		dataStore: make(map[cid.Cid]*list.List),
 		dataTracker: make(map[cid.Cid]map[peer.ID]*list.Element),
+        sentCounter: make(map[cid.Cid] int),
 		storeType: STORE_SEND,
 
         prepareSendingList: list.New(),
@@ -246,6 +248,23 @@ func (s *linkedTicketStore) RemoveTicket(pid peer.ID, cid cid.Cid) error{
 	return nil
 }
 
+func (s *linkedTicketStore) RejectTicket(pid peer.ID, cid cid.Cid) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	tmpmap, ok := s.dataTracker[cid]
+	var ticket Ticket
+	if(!ok){
+        return
+	}else{
+        element, ok := tmpmap[pid]
+		if(!ok){
+            return
+		}
+        ticket = element.Value.(Ticket)
+	}
+    ticket.SetState(STATE_REJECT)
+}
+
 func (s *linkedTicketStore) RemoveTicketEqualsTo(ticket Ticket){
 
 }
@@ -270,8 +289,8 @@ func (s *linkedTicketStore) TicketSize() int64 {
 	return s.storeSize
 }
 
-func (s *linkedTicketStore) RemoveTickets(pid peer.ID, cid []cid.Cid) error {
-    for _, c := range cid{
+func (s *linkedTicketStore) RemoveTickets(pid peer.ID, cids []cid.Cid) error {
+    for _, c := range cids{
     	err := s.RemoveTicket(pid, c)
     	if err != nil {
     		return err
@@ -280,12 +299,23 @@ func (s *linkedTicketStore) RemoveTickets(pid peer.ID, cid []cid.Cid) error {
 	return nil
 }
 
+func (s *linkedTicketStore) RejectTickets(pid peer.ID, cids []cid.Cid) {
+    for _, c := range cids {
+    	s.RejectTicket(pid, c)
+	}
+}
 func (s *linkedTicketStore) PrepareSending(acks []TicketAck) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
     for _, ack := range acks {
         s.prepareSendingList.PushBack(ack)
+        _, ok := s.sentCounter[ack.Cid()]
+        if ok {
+            s.sentCounter[ack.Cid()] ++
+        } else {
+            s.sentCounter[ack.Cid()] = 1
+        }
     }
     return nil
 }
@@ -306,6 +336,7 @@ func (s *linkedTicketStore) RemoveSendingTasks(pid peer.ID, cids []cid.Cid) erro
                     tmp := cur
                     cur = cur.Next()
                     s.prepareSendingList.Remove(tmp)
+                    s.sentCounter[cid] --
                     goto NEXT
                 }
             }
@@ -426,6 +457,21 @@ func (s *linkedTicketStore) LoggableFull() map[string] interface{}{
 	}
 }
     
+func (s *linkedTicketStore) NumOfTickets(c cid.Cid) int {
+//    tmpmap, ok := s.dataTracker[c]
+//	if(ok){
+//        return len(tmpmap)
+//	} else {
+//        return 0
+//    }
+    num, ok := s.sentCounter[c]
+    if ok {
+        return num
+    } else {
+        return 0
+    }
+}
+
 func (s *linkedTicketStore) SendTickets(tickets []Ticket, pid peer.ID) {
 	log.Debugf("send tickets to %s.", pid.String())
     var pids = []peer.ID{pid}

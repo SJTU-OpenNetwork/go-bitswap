@@ -29,6 +29,7 @@ func (e *PeerDecodeFail) Error() string{
 const(
 	STATE_NEW int32 = iota
 	STATE_ACK
+    STATE_REJECT
 	STATE_CANCEL
 	STATE_TIMEOUT
 )
@@ -68,6 +69,7 @@ type Ticket interface {
 
 	SetPublisher(peer.ID)
 	SetTimeStamp(timeStamp int64)
+	SetState(int32)
 
 	Loggable
 	//Loggable() map[string]interface{}
@@ -185,6 +187,10 @@ func (t* BasicTicket) GetSize() int64{
 
 func (t* BasicTicket) GetState() int32{
 	return t.state
+}
+
+func (t* BasicTicket) SetState(state int32) {
+	t.state = state
 }
 
 func (t* BasicTicket) GetStateString() string{

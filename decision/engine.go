@@ -101,7 +101,8 @@ const (
 	defaultRequestSizeCapacity = 128 * 512 * 1024
 	defaultBlockSize = 512
 
-    sendTicketThreshold = 0 // always send the ticket first? 
+    sendTicketThreshold = -1 // always send the ticket first? 
+    numOfTicketsThreshold = 2
 )
 
 var (
@@ -401,13 +402,10 @@ func (e *Engine) taskWorkerExit() {
 
 
 /*
- * Get the timestamp used for ticket timestamp
- * timestamp = current time + time used to solve the block sending + time used to solve promised tickets
+ * Get current time used for ticket timestamp
  */
 func (e *Engine) getTimeStamp() int64{
 	baseTime := time.Now().UnixNano() / (int64(time.Millisecond)/int64(time.Nanosecond))
-	//return baseTime + e.requestRecorder.PredictTime() + e.ticketStore.PredictTime()
-    //numOfTasks := e.peerRequestQueue.TaskLength()
     return baseTime + e.getTimeDuration()
 }
 
@@ -428,7 +426,7 @@ func (e *Engine) getTimeDuration() int64{
  */
 func (e *Engine) setTimeStamp(ts []tickets.Ticket) {
 	for _, t := range(ts){
-		t.SetTimeStamp(t.TimeStamp() + e.getTimeDuration())
+		t.SetTimeStamp(e.getTimeDuration())
 	}
 }
 
@@ -712,6 +710,9 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
             continue
         }
 		l.Wants(entry.Cid, entry.Priority)
+        if e.ticketStore.NumOfTickets(entry.Cid) > numOfTicketsThreshold {
+            continue
+        }
 		blockSize, ok := blockSizes[entry.Cid]
 		if ok {
 			log.Debugf("have block %s", entry.Cid)
@@ -806,8 +807,10 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
     for _, cid := range noblocks {
         local, ok := localMap[cid]
         nt := ticketMap[cid]
+        duration := nt.TimeStamp()
+        nt.SetTimeStamp(getCurrentTimestamp() + duration)
         if ok {
-            if local.TimeStamp() <= nt.TimeStamp() {
+            if local.TimeStamp() <= nt.TimeStamp() || local.TimeStamp() - time.Now().UnixNano() < 100 {
             	log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s", cid.String(), nt.Publisher(), nt.SendTo())
                 rejectsMap[nt.Publisher()] = append(rejectsMap[nt.Publisher()], nt)
             } else {
@@ -834,7 +837,6 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
         e.ticketStore.StoreReceivedTickets(accepts)
     }
 
-    log.Debug("GET HERE!")
     // TODO: now I reveive a lot of new tickets, I may missed a lot wantlists
 	for _, l := range e.ledgerMap {
 		l.lk.Lock()
@@ -916,6 +918,9 @@ func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
 		for _, k := range ks {
 			if entry, ok := l.WantListContains(k); ok {
                 if e.ticketStore.IsSending(l.Partner, k) {
+                    continue
+                }
+                if e.ticketStore.NumOfTickets(entry.Cid) > numOfTicketsThreshold {
                     continue
                 }
 				blockSize, ok := blocksizes[k]
