@@ -721,7 +721,6 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
 				if(e.peerRequestQueue.TaskLength() > sendTicketThreshold){	//We do not have enough network resources. Send tickets instead of send the block
 					//Create ticket
 					log.Debug("Solve wantlist: peerRequestQueue is full. Create tickets.")
-					//log.Debugf("[TKTCREATE] Cid %s, SendTo %s", )
 					tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
 					activeTickets = append(activeTickets, tmptickets...)
 				} else {
@@ -787,7 +786,8 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
     var newTickets []tickets.Ticket
 
     for _, ticket := range tks {
-    	log.Debugf("[TKTRECV] Cid %s, Publisher %s, Receiver %s", ticket.Cid().String(), p.String(), ticket.SendTo().String())
+    	log.Debugf("[TKTRECV] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
+    		ticket.Cid().String(), p.String(), ticket.SendTo().String(), ticket.TimeStamp())
         cids = append(cids, ticket.Cid())
         ticket.SetPublisher(p)
         ticketMap[ticket.Cid()] = ticket
@@ -811,16 +811,20 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
         nt.SetTimeStamp(getCurrentTimestamp() + duration)
         if ok {
             if local.TimeStamp() <= nt.TimeStamp() || local.TimeStamp() - time.Now().UnixNano() < 100 {
-            	log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s", cid.String(), nt.Publisher(), nt.SendTo())
+            	log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
+            		cid.String(), nt.Publisher(), nt.SendTo(), nt.TimeStamp())
                 rejectsMap[nt.Publisher()] = append(rejectsMap[nt.Publisher()], nt)
             } else {
-				log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s", cid.String(), local.Publisher(), local.SendTo())
-				log.Debugf("[TKTACCEPT] Cid %s, Publisher %s, Receiver %s", cid.String(), nt.Publisher(), nt.SendTo())
+				log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
+					cid.String(), local.Publisher(), local.SendTo(), local.TimeStamp())
+				log.Debugf("[TKTACCEPT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
+					cid.String(), nt.Publisher(), nt.SendTo(), nt.TimeStamp())
                 rejectsMap[local.Publisher()] = append(rejectsMap[local.Publisher()], local)
                 acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
             }
         } else {
-			log.Debugf("[TKTACCEPT] Cid %s, Publisher %s, Receiver %s", cid.String(), nt.Publisher(), nt.SendTo())
+			log.Debugf("[TKTACCEPT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
+				cid.String(), nt.Publisher(), nt.SendTo(), nt.TimeStamp())
             acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
             newTickets = append(newTickets, nt)
         }

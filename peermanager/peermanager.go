@@ -115,7 +115,7 @@ func (pm *PeerManager) SendTicketMessage(tickets []tickets.Ticket, targets []pee
 		pqi := pm.getOrCreate(t)
 		pqi.pq.AddTicketMessage(tickets)
 		for _, tk := range tickets {
-			log.Debugf("[TKTSEND] Cid %s, SendTo %s", tk.Cid(), tk.SendTo().String())
+			log.Debugf("[TKTSEND] Cid %s, SendTo %s, TimeStamp %d", tk.Cid(), tk.SendTo().String(), tk.TimeStamp())
 		}
 	}
 }
