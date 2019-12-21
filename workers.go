@@ -156,7 +156,7 @@ func (bs *Bitswap) sendBlocks(ctx context.Context, env *engine.Envelope) {
 		msgSize += len(block.RawData())
 		msg.AddBlock(block)
 		//log.Infof("Sending block %s to %s", block, env.Peer)
-		log.Debugf("[BLKSEND] Cid %s, SendTo %s", block, env.Peer)
+		log.Debugf("[BLKSEND] Cid %s, SendTo %s", block.Cid().String(), env.Peer)
 	}
 
 	bs.sentHistogram.Observe(float64(msgSize))
