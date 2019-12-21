@@ -664,6 +664,14 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		l.ReceivedBytes(len(block.RawData()))
 		blockCids = append(blockCids, block.Cid())
 	}
+	
+    // Receive Ticket Acks - Jerry 2019/12/14
+	acks := m.TicketAcks()
+    if acks != nil {
+        w = e.handleTicketAcks(ctx, l, acks)
+        newWorkExists = newWorkExists || w
+    }
+
 	l.lk.Unlock()
 
     // Receive tickets
@@ -671,12 +679,6 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
         e.handleTickets(ctx, p, m.Tickets())
 	}
 
-	// Receive Ticket Acks - Jerry 2019/12/14
-	acks := m.TicketAcks()
-    if acks != nil {
-        w = e.handleTicketAcks(ctx, p, acks)
-        newWorkExists = newWorkExists || w
-    }
 
     // Logcat situation of ticketStore
     // log.Debug("Ticket Store State:\n", utils.Loggable2json(e.ticketStore))
@@ -790,6 +792,8 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
     		ticket.Cid().String(), p.String(), ticket.SendTo().String(), ticket.TimeStamp())
         cids = append(cids, ticket.Cid())
         ticket.SetPublisher(p)
+        duration := ticket.TimeStamp()
+        ticket.SetTimeStamp(getCurrentTimestamp() + duration)
         ticketMap[ticket.Cid()] = ticket
     }
     blockSizes := e.bsm.getBlockSizes(ctx, cids)
@@ -807,8 +811,6 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
     for _, cid := range noblocks {
         local, ok := localMap[cid]
         nt := ticketMap[cid]
-        duration := nt.TimeStamp()
-        nt.SetTimeStamp(getCurrentTimestamp() + duration)
         if ok {
             if local.TimeStamp() <= nt.TimeStamp() || local.TimeStamp() - time.Now().UnixNano() < 100 {
             	log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
@@ -851,7 +853,11 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
                 if e.ticketStore.IsSending(l.Partner, k) {
                     continue
                 }
+                if e.ticketStore.NumOfTickets(entry.Cid) > numOfTicketsThreshold {
+                    continue
+                }
 				tmpticket := tickets.CreateBasicTicket(l.Partner, entry.Cid, ticket.GetSize())
+                tmpticket.SetTimeStamp(ticket.TimeStamp()-getCurrentTimestamp()+e.getTimeDuration())
 				activeTickets = append(activeTickets, tmpticket)
 			}
 		}
@@ -860,7 +866,8 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
     }
 }
 
-func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets.TicketAck) bool {
+func (e *Engine) handleTicketAcks(ctx context.Context, l *ledger, acks []tickets.TicketAck) bool {
+    p := l.Partner
 	ackMap := make(map[cid.Cid] tickets.TicketAck)
 	accepts := make([]cid.Cid,0)
 	rejects := make([]cid.Cid,0)
@@ -887,6 +894,10 @@ func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets
     blockSizes := e.bsm.getBlockSizes(ctx, accepts)
     msgSize := 0
 	for _, c := range accepts {
+		entry, ok := l.WantListContains(c)
+        if !ok {
+            continue
+        }
 		blockSize, ok := blockSizes[c]
 		if ok {
 			// I have corresponding block, send it
@@ -897,7 +908,8 @@ func (e *Engine) handleTicketAcks(ctx context.Context, p peer.ID, acks []tickets
 				msgSize = 0
                 work = true
 			}
-			activeEntries = append(activeEntries, peertask.Task{Identifier: ackMap[c].Cid(), Priority: 10})
+            priority := entry.Priority
+			activeEntries = append(activeEntries, peertask.Task{Identifier: ackMap[c].Cid(), Priority: priority})
 			msgSize += blockSize
 		} else {
 			// I don't have corresponding block
