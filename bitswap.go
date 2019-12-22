@@ -305,6 +305,7 @@ func (bs *Bitswap) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []b
 		wanted = make([]blocks.Block, 0, len(blks))
 		for _, b := range blks {
 			if bs.sm.IsWanted(b.Cid()) {
+				log.Debugf("[BLKRECV] Cid %s, From %s", b.Cid(), from.String())
 				wanted = append(wanted, b)
 			} else {
 				log.Debugf("[recv] block not in wantlist; cid=%s, peer=%s", b.Cid(), from)
@@ -394,9 +395,9 @@ func (bs *Bitswap) ReceiveMessage(ctx context.Context, p peer.ID, incoming bsmsg
 	}
 
 	bs.updateReceiveCounters(iblocks)
-	for _, b := range iblocks {
-		log.Debugf("[BLKRECV] Cid %s, From %s", b.Cid(), p.String())
-	}
+	//for _, b := range iblocks {
+	//	log.Debugf("[BLKRECV] Cid %s, From %s", b.Cid(), p.String())
+	//}
 
 	// Process blocks
 	err := bs.receiveBlocksFrom(ctx, p, iblocks)
