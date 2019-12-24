@@ -796,7 +796,7 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
 		}
 	}
     duration := e.getTimeDuration()
-    for i, t := range(ts){
+    for i, t := range(activeTickets){
 		t.SetTimeStamp(duration + int64(i) *100)
 	}
 	e.ticketStore.SendTickets(activeTickets, p)
