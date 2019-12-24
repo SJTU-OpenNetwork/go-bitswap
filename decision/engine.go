@@ -846,8 +846,12 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
             } else { // old ticket is better
                 if local.TimeStamp() - now < -500 { // we may received a bad ticket, try others
                     acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
+					log.Debugf("[TKTACCEPT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
+						cid.String(), nt.Publisher().String(), nt.SendTo().String(), nt.TimeStamp())
                 } else {
                     rejectsMap[nt.Publisher()] = append(rejectsMap[nt.Publisher()], nt)
+					log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
+						cid.String(), nt.Publisher().String(), nt.SendTo().String(), nt.TimeStamp())
                 }
             }
 //            if local.TimeStamp() <= nt.TimeStamp() || local.TimeStamp() - time.Now().UnixNano() < 100 {
