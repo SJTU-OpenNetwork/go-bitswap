@@ -139,6 +139,8 @@ func New(parent context.Context, network bsnet.BitSwapNetwork,
 
     ts := tickets.NewLinkedTicketStore(pm)
 	engine := decision.NewEngine(ctx, bstore, network.ConnectionManager(), ts) // TODO close the engine with Close() method
+    wct := new(uint32)
+    engine.SetWcounter(wct)
 	bs := &Bitswap{
 		blockstore:       bstore,
 		engine:           engine,
@@ -151,6 +153,7 @@ func New(parent context.Context, network bsnet.BitSwapNetwork,
 		sm:               bssm.New(ctx, sessionFactory, sessionPeerManagerFactory, sessionRequestSplitterFactory, notif),
 		notif:            notif,
 		counters:         new(counters),
+        wcounter:         wct,
 		dupMetric:        dupHist,
 		allMetric:        allHist,
 		sentHistogram:    sentHistogram,
@@ -158,6 +161,7 @@ func New(parent context.Context, network bsnet.BitSwapNetwork,
 		provSearchDelay:  defaultProvSearchDelay,
 		rebroadcastDelay: delay.Fixed(time.Minute),
 	}
+    *bs.wcounter = 0
 
 	// apply functional options before starting and running bitswap
 	for _, option := range options {
@@ -217,6 +221,7 @@ type Bitswap struct {
 	// Counters for various statistics
 	counterLk sync.Mutex
 	counters  *counters
+    wcounter *uint32
 
 	// Metrics interface metrics
 	dupMetric     metrics.Histogram

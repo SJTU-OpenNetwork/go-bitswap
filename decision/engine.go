@@ -7,6 +7,7 @@ import (
 	"github.com/SJTU-OpenNetwork/go-bitswap/tickets"
 	"sync"
 	"time"
+    "math/rand"
 	//"container/list"
 
 	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
@@ -101,8 +102,8 @@ const (
 	defaultRequestSizeCapacity = 128 * 512 * 1024
 	defaultBlockSize = 512
 
-    sendTicketThreshold = -1 // always send the ticket first? 
-    numOfTicketsThreshold = 2
+    sendTicketThreshold = 0 // always send the ticket first? 
+    numOfTicketsThreshold = 4
 )
 
 var (
@@ -173,6 +174,7 @@ type Engine struct {
 	ticketAckOutbox chan *Envelope
 
 	bsm *blockstoreManager
+    wct *uint32
 
 	peerTagger PeerTagger
 
@@ -187,6 +189,7 @@ type Engine struct {
 	taskWorkerLock  sync.Mutex
 	taskWorkerCount int
 
+    fullMesh bool
     //peerWantlistMap map[cid.Cid] *list.List
     //peerWantlistLock sync.Mutex
 }
@@ -211,15 +214,21 @@ func NewEngine(ctx context.Context, bs bstore.Blockstore, peerTagger PeerTagger,
 			maxSize:defaultRequestSizeCapacity,
 		},
         ticketStore:     ts,
+        fullMesh:       false,
         //peerWantlistMap: make(map[cid.Cid] *list.List),
 	}
 	e.tagQueued = fmt.Sprintf(tagFormat, "queued", uuid.New().String())
 	e.tagUseful = fmt.Sprintf(tagFormat, "useful", uuid.New().String())
 	e.peerRequestQueue = peertaskqueue.New(
 		peertaskqueue.OnPeerAddedHook(e.onPeerAdded),
-		peertaskqueue.OnPeerRemovedHook(e.onPeerRemoved))
+		peertaskqueue.OnPeerRemovedHook(e.onPeerRemoved),
+        peertaskqueue.IgnoreFreezing(true))
 	go e.scoreWorker(ctx)
 	return e
+}
+
+func (e *Engine) SetWcounter(w *uint32) {
+    e.wct = w
 }
 
 // Start up workers to handle requests from other nodes for the data on this node
@@ -416,7 +425,11 @@ func (e *Engine) getTimeStamp() int64{
  */
 func (e *Engine) getTimeDuration() int64{
 	numOfTasks := e.peerRequestQueue.TaskLength()
-	return e.requestRecorder.PredictTimeByNumOfTasks(numOfTasks) + e.ticketStore.PredictTime()
+    ptime := e.requestRecorder.PredictTimeByNumOfTasks(numOfTasks) + e.ticketStore.PredictTime()
+    ptime = ptime + int64(*e.wct) * 100
+    log.Debugf("[TASKLEN] NumOfTasks: %d", numOfTasks)
+    log.Debugf("[DURATION] Duration: %d", ptime)
+	return ptime
 }
 
 /*
@@ -425,8 +438,8 @@ func (e *Engine) getTimeDuration() int64{
  * Make sure to call this func ONCE AND ONLY ONCE before sending them.
  */
 func (e *Engine) setTimeStamp(ts []tickets.Ticket) {
-	for _, t := range(ts){
-		t.SetTimeStamp(e.getTimeDuration())
+	for i, t := range(ts){
+		t.SetTimeStamp(e.getTimeDuration() + int64(i) *100)
 	}
 }
 
@@ -653,7 +666,13 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
     e.handleCancelWantlist(cancelKs.Keys(), l)
 
     // handle want keys
-    w := e.handleNewWantlist(wantKs.Keys(), wantEntries, l, ctx)
+    rand.Seed(time.Now().UnixNano())
+    perm := rand.Perm(len(wantEntries))
+    var wantEntries2 []bsmsg.Entry = make([]bsmsg.Entry, len(wantEntries))
+    for i, j := range perm {
+        wantEntries2[i] = wantEntries[j]
+    }
+    w := e.handleNewWantlist(wantKs.Keys(), wantEntries2, l, ctx)
     newWorkExists = newWorkExists || w
 	
 	// Receive blocks
@@ -712,7 +731,7 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
             continue
         }
 		l.Wants(entry.Cid, entry.Priority)
-        if e.ticketStore.NumOfTickets(entry.Cid) > numOfTicketsThreshold {
+        if e.fullMesh && e.ticketStore.NumOfTickets(entry.Cid) > numOfTicketsThreshold {
             continue
         }
 		blockSize, ok := blockSizes[entry.Cid]
@@ -720,7 +739,8 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
 			log.Debugf("have block %s", entry.Cid)
 			newWorkExists = true
 			if msgSize+blockSize > maxMessageSize {
-				if(e.peerRequestQueue.TaskLength() > sendTicketThreshold){	//We do not have enough network resources. Send tickets instead of send the block
+                taskLength := e.peerRequestQueue.TaskLength()
+				if(taskLength+int(*e.wct) > sendTicketThreshold){	//We do not have enough network resources. Send tickets instead of send the block
 					//Create ticket
 					log.Debug("Solve wantlist: peerRequestQueue is full. Create tickets.")
 					tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
@@ -742,7 +762,7 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
 	}
     //e.unstoreWantlist(p, cancels)
 	if len(activeEntries) > 0 {
-		if e.peerRequestQueue.TaskLength() > sendTicketThreshold {
+		if e.peerRequestQueue.TaskLength()+int(*e.wct) > sendTicketThreshold {
 			log.Debug("Solve wantlist: peerRequestQueue is full. Create tickets.")
 			tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
 			activeTickets = append(activeTickets, tmptickets...)
@@ -775,7 +795,10 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
             }
 		}
 	}
-	e.setTimeStamp(activeTickets)
+    duration := e.getTimeDuration()
+    for i, t := range(ts){
+		t.SetTimeStamp(duration + int64(i) *100)
+	}
 	e.ticketStore.SendTickets(activeTickets, p)
     return newWorkExists
 }
@@ -812,18 +835,33 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
         local, ok := localMap[cid]
         nt := ticketMap[cid]
         if ok {
-            if local.TimeStamp() <= nt.TimeStamp() || local.TimeStamp() - time.Now().UnixNano() < 100 {
-            	log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
-            		cid.String(), nt.Publisher(), nt.SendTo(), nt.TimeStamp())
-                rejectsMap[nt.Publisher()] = append(rejectsMap[nt.Publisher()], nt)
-            } else {
-				log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
-					cid.String(), local.Publisher(), local.SendTo(), local.TimeStamp())
-				log.Debugf("[TKTACCEPT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
-					cid.String(), nt.Publisher(), nt.SendTo(), nt.TimeStamp())
-                rejectsMap[local.Publisher()] = append(rejectsMap[local.Publisher()], local)
-                acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
+            now := time.Now().UnixNano()
+            if local.TimeStamp() > nt.TimeStamp() { // new ticket is better
+                if local.TimeStamp() - time.Now().UnixNano() < 100 {
+                    rejectsMap[nt.Publisher()] = append(rejectsMap[nt.Publisher()], nt) //but old is about to receive
+                } else {
+                    acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
+                    rejectsMap[local.Publisher()] = append(rejectsMap[local.Publisher()], local)
+                }
+            } else { // old ticket is better
+                if local.TimeStamp() - now < -500 { // we may received a bad ticket, try others
+                    acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
+                } else {
+                    rejectsMap[nt.Publisher()] = append(rejectsMap[nt.Publisher()], nt)
+                }
             }
+//            if local.TimeStamp() <= nt.TimeStamp() || local.TimeStamp() - time.Now().UnixNano() < 100 {
+//            	log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
+//            		cid.String(), nt.Publisher(), nt.SendTo(), nt.TimeStamp())
+//                rejectsMap[nt.Publisher()] = append(rejectsMap[nt.Publisher()], nt)
+//            } else {
+//				log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
+//					cid.String(), local.Publisher(), local.SendTo(), local.TimeStamp())
+//				log.Debugf("[TKTACCEPT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
+//					cid.String(), nt.Publisher(), nt.SendTo(), nt.TimeStamp())
+//                rejectsMap[local.Publisher()] = append(rejectsMap[local.Publisher()], local)
+//                acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
+//            }
         } else {
 			log.Debugf("[TKTACCEPT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
 				cid.String(), nt.Publisher(), nt.SendTo(), nt.TimeStamp())
@@ -853,7 +891,7 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
                 if e.ticketStore.IsSending(l.Partner, k) {
                     continue
                 }
-                if e.ticketStore.NumOfTickets(entry.Cid) > numOfTicketsThreshold {
+                if e.fullMesh && e.ticketStore.NumOfTickets(entry.Cid) > numOfTicketsThreshold {
                     continue
                 }
 				tmpticket := tickets.CreateBasicTicket(l.Partner, entry.Cid, ticket.GetSize())
@@ -887,6 +925,7 @@ func (e *Engine) handleTicketAcks(ctx context.Context, l *ledger, acks []tickets
 	}
     // handle reject Acks
     e.ticketStore.RemoveSendingTasks(p, rejects)
+    e.ticketStore.RejectTickets(p, rejects)
 	//e.ticketStore.RemoveTickets(p, rejects)
 
     // handle accept Acks
@@ -936,14 +975,14 @@ func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
                 if e.ticketStore.IsSending(l.Partner, k) {
                     continue
                 }
-                if e.ticketStore.NumOfTickets(entry.Cid) > numOfTicketsThreshold {
+                if e.fullMesh && e.ticketStore.NumOfTickets(entry.Cid) > numOfTicketsThreshold {
                     continue
                 }
 				blockSize, ok := blocksizes[k]
 				if !ok {
 					blockSize = defaultBlockSize
 				}
-				if(e.peerRequestQueue.TaskLength() > sendTicketThreshold){	//We do not have enough network resources. Send tickets instead of send the block
+				if(e.peerRequestQueue.TaskLength()+int(*e.wct) > sendTicketThreshold){	//We do not have enough network resources. Send tickets instead of send the block
 					//Create ticket
 					tmpticket := tickets.CreateBasicTicket(l.Partner, entry.Cid, int64(blockSize))
 					//tmptickets := createTicketsFromEntry(l.Partner, entry.Cid, blockSizes)
@@ -964,9 +1003,17 @@ func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
     // send blocks if there is tickets
 	acks, _ := e.ticketStore.PopSendingTasks(ks)
 	for _, ack := range acks {
+//        l := e.findOrCreate(ack.Receiver()) //why this causes dead lock????????????????????
+//        l.lk.Lock()
+//        entry, ok := l.WantListContains(ack.Cid())
+//        l.lk.Unlock()
+//        if !ok {
+//            continue
+//        }
 		e.peerRequestQueue.PushBlock(ack.Receiver(), peertask.Task{
             Identifier: ack.Cid(),
-            Priority: 10000, // how to set the priority?
+            //Priority: entry.Priority, 
+            Priority: 10000, 
         })
         work = true
 	}

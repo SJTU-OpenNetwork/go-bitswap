@@ -173,13 +173,13 @@ func (s *linkedTicketStore) IsSending(pid peer.ID, cid cid.Cid) bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-    tmpmap, ok := s.dataTracker[cid]
-	if(ok){
-		_, ok := tmpmap[pid]
-        if ok {
-            return true
-        }
-	}
+//    tmpmap, ok := s.dataTracker[cid]
+//	if(ok){
+//		_, ok := tmpmap[pid]
+//        if ok {
+//            return true
+//        }
+//	}
 
     for cur:= s.prepareSendingList.Front(); cur!=nil; cur=cur.Next(){
         ack, ok := cur.Value.(TicketAck)
@@ -241,9 +241,10 @@ func (s *linkedTicketStore) RemoveTicket(pid peer.ID, cid cid.Cid) error{
 		delete(s.dataStore, cid)
 	}
 
-	s.storeNumber --
-	s.storeSize -= tmpTicket.GetSize()
-
+    if tmpTicket.GetState() != STATE_REJECT {
+	    s.storeNumber --
+	    s.storeSize -= tmpTicket.GetSize()
+    }
 
 	return nil
 }
@@ -261,7 +262,11 @@ func (s *linkedTicketStore) RejectTicket(pid peer.ID, cid cid.Cid) {
             return
 		}
         ticket = element.Value.(Ticket)
+        if ticket.GetState() == STATE_REJECT {
+            return
+        }
 	}
+    s.storeNumber --
     ticket.SetState(STATE_REJECT)
 }
 

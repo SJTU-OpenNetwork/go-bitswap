@@ -30,6 +30,8 @@ const(
 	STATE_NEW int32 = iota
 	STATE_ACK
     STATE_REJECT
+
+    //unused
 	STATE_CANCEL
 	STATE_TIMEOUT
 )

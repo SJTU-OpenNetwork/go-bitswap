@@ -13,7 +13,7 @@ import (
 
 // TaskWorkerCount is the total number of simultaneous threads sending
 // outgoing messages
-var TaskWorkerCount = 8
+var TaskWorkerCount = 3
 
 // TicketWorkerCount is the total number of si,ultaneous threads sending outgoing messages
 // TODO: Judge the number of ticketworkers - Riften
@@ -42,12 +42,12 @@ func (bs *Bitswap) startWorkers(ctx context.Context, px process.Process) {
 	}
 
 	// TODO: start ticketWorker - Jerry
-	for i := 0; i < TicketWorkerCount; i++ {
-		i := i
-		px.Go(func(px process.Process) {
-			bs.ticketWorker(ctx, i)
-		})
-	}
+//	for i := 0; i < TicketWorkerCount; i++ {
+//		i := i
+//		px.Go(func(px process.Process) {
+//			bs.ticketWorker(ctx, i)
+//		})
+//	}
 }
 
 func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
@@ -66,6 +66,9 @@ func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
 				if !ok {
 					continue
 				}
+                bs.counterLk.Lock()
+                *bs.wcounter ++
+                bs.counterLk.Unlock()
 				// update the BS ledger to reflect sent message
 				// TODO: Should only track *useful* messages in ledger
 				outgoing := bsmsg.New(false)
@@ -87,6 +90,7 @@ func (bs *Bitswap) taskWorker(ctx context.Context, id int) {
 					bs.counters.blocksSent++
 					bs.counters.dataSent += uint64(len(block.RawData()))
 				}
+                *bs.wcounter --
 				bs.counterLk.Unlock()
 
 			case <-ctx.Done():
