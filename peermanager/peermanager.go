@@ -35,9 +35,10 @@ type peerQueueInstance struct {
 // PeerManager manages a pool of peers and sends messages to peers in the pool.
 type PeerManager struct {
 	// peerQueues -- interact through internal utility functions get/set/remove/iterate
-	peerQueues map[peer.ID]*peerQueueInstance
+	//peerQueues map[peer.ID]*peerQueueInstance
+	peerQueues sync.Map
 
-    mapLock         sync.Mutex
+    //mapLock         sync.Mutex
 	createPeerQueue PeerQueueFactory
 	ctx             context.Context
 }
@@ -45,7 +46,7 @@ type PeerManager struct {
 // New creates a new PeerManager, given a context and a peerQueueFactory.
 func New(ctx context.Context, createPeerQueue PeerQueueFactory) *PeerManager {
 	return &PeerManager{
-		peerQueues:      make(map[peer.ID]*peerQueueInstance),
+		//peerQueues:      make(map[peer.ID]*peerQueueInstance),
 		createPeerQueue: createPeerQueue,
 		ctx:             ctx,
 	}
@@ -53,12 +54,18 @@ func New(ctx context.Context, createPeerQueue PeerQueueFactory) *PeerManager {
 
 // ConnectedPeers returns a list of peers this PeerManager is managing.
 func (pm *PeerManager) ConnectedPeers() []peer.ID {
-    pm.mapLock.Lock()
-    defer pm.mapLock.Unlock()
-	peers := make([]peer.ID, 0, len(pm.peerQueues))
-	for p := range pm.peerQueues {
-		peers = append(peers, p)
-	}
+    //pm.mapLock.Lock()
+    //defer pm.mapLock.Unlock()
+
+	peers := make([]peer.ID, 0)
+	pm.peerQueues.Range(func(p, _ interface{}) bool {
+		peers = append(peers, p.(peer.ID))
+		return true
+	})
+
+	//for p := range pm.peerQueues {
+	//	peers = append(peers, p)
+	//}
 	return peers
 }
 
@@ -76,35 +83,43 @@ func (pm *PeerManager) Connected(p peer.ID, initialWants *wantlist.SessionTracke
 
 // Disconnected is called to remove a peer from the pool.
 func (pm *PeerManager) Disconnected(p peer.ID) {
-    pm.mapLock.Lock()
-    defer pm.mapLock.Unlock()
-	pq, ok := pm.peerQueues[p]
-
+    //pm.mapLock.Lock()
+    //defer pm.mapLock.Unlock()
+	//pq, ok := pm.peerQueues[p]
+	pq, ok := pm.peerQueues.Load(p)
 	if !ok {
 		return
 	}
-
-	pq.refcnt--
-	if pq.refcnt > 0 {
+	pq2 := pq.(*peerQueueInstance)
+	pq2.refcnt--
+	if pq2.refcnt > 0 {
 		return
 	}
 
-	delete(pm.peerQueues, p)
-	pq.pq.Shutdown()
+	//delete(pm.peerQueues, p)
+	pm.peerQueues.Delete(p)
+	pq2.pq.Shutdown()
 }
 
 // SendMessage is called to send a message to all or some peers in the pool;
 // if targets is nil, it sends to all.
 func (pm *PeerManager) SendMessage(entries []bsmsg.Entry, targets []peer.ID, from uint64) {
 	if len(targets) == 0 {
-        pm.mapLock.Lock()
-		for _, p := range pm.peerQueues {
-			for _, e := range entries {
-				log.Debugf("[WANTSEND] Cid %s, SendTo ALL", e.Cid.String())
-			}
-			p.pq.AddMessage(entries, from)
+		for _, e := range entries {
+			log.Debugf("[WANTSEND] Cid %s, SendTo ALL", e.Cid.String())
 		}
-        pm.mapLock.Unlock()
+		pm.peerQueues.Range(func(_, p interface{}) bool {
+			p.(*peerQueueInstance).pq.AddMessage(entries, from)
+			return true
+		})
+        //pm.mapLock.Lock()
+		//for _, p := range pm.peerQueues {
+		//	for _, e := range entries {
+		//		log.Debugf("[WANTSEND] Cid %s, SendTo ALL", e.Cid.String())
+		//	}
+		//	p.pq.AddMessage(entries, from)
+		//}
+        //pm.mapLock.Unlock()
 	} else {
 		for _, t := range targets {
 			for _, e := range entries {
@@ -141,14 +156,19 @@ func (pm *PeerManager) SendTicketAckMessage(acks []tickets.TicketAck, targets []
 }
 
 func (pm *PeerManager) getOrCreate(p peer.ID) *peerQueueInstance {
-    pm.mapLock.Lock()
-    defer pm.mapLock.Unlock()
-	pqi, ok := pm.peerQueues[p]
+    //pm.mapLock.Lock()
+    //defer pm.mapLock.Unlock()
+	//pqi, ok := pm.peerQueues[p]
+	pqi, ok := pm.peerQueues.Load(p)
+	var pqi2 *peerQueueInstance
 	if !ok {
 		pq := pm.createPeerQueue(pm.ctx, p)
 		pq.Startup()
-		pqi = &peerQueueInstance{0, pq}
-		pm.peerQueues[p] = pqi
+		pqi2 = &peerQueueInstance{0, pq}
+		//pm.peerQueues[p] = pqi
+		pm.peerQueues.Store(p, pqi2)
+	} else {
+		pqi2 = pqi.(*peerQueueInstance)
 	}
-	return pqi
+	return pqi2
 }
