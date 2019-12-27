@@ -2,6 +2,7 @@ package peermanager
 
 import (
 	"context"
+    "sync"
 
 	bsmsg "github.com/SJTU-OpenNetwork/go-bitswap/message"
 	tickets "github.com/SJTU-OpenNetwork/go-bitswap/tickets"
@@ -36,6 +37,7 @@ type PeerManager struct {
 	// peerQueues -- interact through internal utility functions get/set/remove/iterate
 	peerQueues map[peer.ID]*peerQueueInstance
 
+    mapLock         sync.Mutex
 	createPeerQueue PeerQueueFactory
 	ctx             context.Context
 }
@@ -51,6 +53,8 @@ func New(ctx context.Context, createPeerQueue PeerQueueFactory) *PeerManager {
 
 // ConnectedPeers returns a list of peers this PeerManager is managing.
 func (pm *PeerManager) ConnectedPeers() []peer.ID {
+    pm.mapLock.Lock()
+    defer pm.mapLock.Unlock()
 	peers := make([]peer.ID, 0, len(pm.peerQueues))
 	for p := range pm.peerQueues {
 		peers = append(peers, p)
@@ -72,6 +76,8 @@ func (pm *PeerManager) Connected(p peer.ID, initialWants *wantlist.SessionTracke
 
 // Disconnected is called to remove a peer from the pool.
 func (pm *PeerManager) Disconnected(p peer.ID) {
+    pm.mapLock.Lock()
+    defer pm.mapLock.Unlock()
 	pq, ok := pm.peerQueues[p]
 
 	if !ok {
@@ -91,12 +97,14 @@ func (pm *PeerManager) Disconnected(p peer.ID) {
 // if targets is nil, it sends to all.
 func (pm *PeerManager) SendMessage(entries []bsmsg.Entry, targets []peer.ID, from uint64) {
 	if len(targets) == 0 {
+        pm.mapLock.Lock()
 		for _, p := range pm.peerQueues {
 			for _, e := range entries {
 				log.Debugf("[WANTSEND] Cid %s, SendTo ALL", e.Cid.String())
 			}
 			p.pq.AddMessage(entries, from)
 		}
+        pm.mapLock.Unlock()
 	} else {
 		for _, t := range targets {
 			for _, e := range entries {
@@ -133,6 +141,8 @@ func (pm *PeerManager) SendTicketAckMessage(acks []tickets.TicketAck, targets []
 }
 
 func (pm *PeerManager) getOrCreate(p peer.ID) *peerQueueInstance {
+    pm.mapLock.Lock()
+    defer pm.mapLock.Unlock()
 	pqi, ok := pm.peerQueues[p]
 	if !ok {
 		pq := pm.createPeerQueue(pm.ctx, p)

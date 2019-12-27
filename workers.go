@@ -13,7 +13,7 @@ import (
 
 // TaskWorkerCount is the total number of simultaneous threads sending
 // outgoing messages
-var TaskWorkerCount = 3
+var TaskWorkerCount = 8
 
 // TicketWorkerCount is the total number of si,ultaneous threads sending outgoing messages
 // TODO: Judge the number of ticketworkers - Riften

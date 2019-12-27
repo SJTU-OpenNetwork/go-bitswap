@@ -137,8 +137,13 @@ func (s *linkedTicketStore) AddTicket(ticket Ticket) error{
 	tmpmap, ok := s.dataTracker[ticket.Cid()]
 	if(ok){//Sub map already created
 		//TODO: Fix redundant add if it happends - Riften
-		if(tmpmap[ticket.SendTo()]!=nil){
-			log.Error("Redundant add a ticket anready exists!\n This may cause inconsistency with store and tracker!")
+        old, ok := tmpmap[ticket.SendTo()]
+        if ok {
+        //if(tmpmap[ticket.SendTo()]!=nil){
+			//log.Error("Redundant add a ticket anready exists!\n This may cause inconsistency with store and tracker!")
+            s.dataStore[ticket.Cid()].Remove(old)
+		    tmpmap[ticket.SendTo()] = tmpElm
+            return nil
 		}
 		tmpmap[ticket.SendTo()] = tmpElm
 	}else{//Create sub map first
