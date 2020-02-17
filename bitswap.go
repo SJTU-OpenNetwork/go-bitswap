@@ -516,3 +516,8 @@ func (bs *Bitswap) IsOnline() bool {
 func (bs *Bitswap) NewSession(ctx context.Context) exchange.Fetcher {
 	return bs.sm.NewSession(ctx, bs.provSearchDelay, bs.rebroadcastDelay)
 }
+
+// For stream
+func (bs *Bitswap) AddSendTask(id peer.ID, block blocks.Block) error{
+	return nil
+}
