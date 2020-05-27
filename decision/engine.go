@@ -108,6 +108,7 @@ const (
     numOfTicketsThreshold = 4
     sendTicketThresholdSize = 16 * 1024 // if block is smaller than 16k, send it directly
 
+    TICKET_SCALE = 10 // Used to compute time sending tasks corresponding with tickets
 )
 
 var OriginIpfsNodes = []string {
@@ -462,7 +463,7 @@ func (e *Engine) getTimeDuration() int64{
  */
 func (e *Engine) setTimeStamp(ts []tickets.Ticket) {
 	for i, t := range(ts){
-		t.SetTimeStamp(e.getTimeDuration() + int64(i) *100)
+		t.SetTimeStamp(e.getTimeDuration() + int64(i) *TICKET_SCALE)
 	}
 }
 
@@ -729,14 +730,20 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 func (e *Engine) handleCancelWantlist(cids []cid.Cid, l *ledger) {
 	p := l.Partner
 
-	for _, cid := range cids {
-		l.CancelWant(cid)
-		e.peerRequestQueue.Remove(cid, p)
-		log.Debugf("[BLKCANCEL] Cid %s, From %s", cid.String(), p.String())
+	for _, c := range cids {
+		l.CancelWant(c)
+		e.peerRequestQueue.Remove(c, p)
+		log.Debugf("[BLKCANCEL] Cid %s, From %s", c.String(), p.String())
 	}
 
-	e.ticketStore.RemoveSendingTasks(p, cids)
-	e.ticketStore.RemoveTickets(p, cids)
+	err := e.ticketStore.RemoveSendingTasks(p, cids)
+	if err != nil {
+		log.Error(err)
+	}
+	err = e.ticketStore.RemoveTickets(p, cids)
+	if err != nil {
+		log.Error(err)
+	}
 }
 
 func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *ledger, ctx context.Context) bool {
@@ -762,6 +769,7 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
         }
 		blockSize, ok := blockSizes[entry.Cid]
 		if ok {
+			// If this peer have this block
 			log.Debugf("have block %s", entry.Cid)
 			newWorkExists = true
 			if msgSize+blockSize > maxMessageSize {
@@ -801,7 +809,7 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
 	}
 	duration := e.getTimeDuration()
 	for i, t := range(activeTickets){
-		t.SetTimeStamp(duration + int64(i) *100)
+		t.SetTimeStamp(duration + int64(i) *TICKET_SCALE)
 	}
 	// Find the tickets we have received about the wanted block
 	// TODO: This is an Error!!!!! We should not directly forward the received tickets !!!! - Riften
@@ -817,10 +825,13 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
 				log.Debugf("not have block but have tickets for %s", c)
 			    tmpticket := tickets.CreateBasicTicket(p, t.Cid(), t.GetSize())
                 
-                // ????, it will be reset later!!!
-			    if t.TimeStamp() > tmpticket.TimeStamp() {
-				    tmpticket.SetTimeStamp(t.TimeStamp())
-			    }
+                // t.TimeStamp() contains the timestamp when it is received.
+                elapsed := tmpticket.TimeStamp() - t.TimeStamp()
+                if (t.Duration() - elapsed< 0) {
+                	tmpticket.SetDuration(duration + int64(len(activeTickets)*TICKET_SCALE))
+				} else {
+					tmpticket.SetDuration(duration+ int64(len(activeTickets)*TICKET_SCALE) + t.Duration() - elapsed)
+				}
 			    activeTickets = append(activeTickets, tmpticket)
             } else {
 				log.Debugf("neither have block nor tickets for %s . append to cached wantlist", c)
@@ -844,8 +855,9 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
     		ticket.Cid().String(), p.String(), ticket.SendTo().String(), ticket.TimeStamp())
         cids = append(cids, ticket.Cid())
         ticket.SetPublisher(p)
-        duration := ticket.TimeStamp()
-        ticket.SetTimeStamp(getCurrentTimestamp() + duration)
+        //duration := ticket.Duration()
+        //ticket.SetTimeStamp(getCurrentTimestamp() + duration)
+        ticket.SetTimeStamp(getCurrentTimestamp())
         ticketMap[ticket.Cid()] = ticket
     }
     blockSizes := e.bsm.getBlockSizes(ctx, cids)
@@ -861,10 +873,24 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
 
     localMap, _ := e.ticketStore.GetReceivedTicket(noblocks)
     for _, cid := range noblocks {
+
         local, ok := localMap[cid]
         nt := ticketMap[cid]
         if ok {
-            now := time.Now().UnixNano()
+			// We do not have the block. But we have received this ticket.
+			// Judge which ticket to maintain.
+        	newTicketQuality := nt.Duration() + nt.TimeStamp()
+        	localTicketQuality := local.Duration() + local.TimeStamp()
+            //now := time.Now().UnixNano()
+            if (newTicketQuality < localTicketQuality - 100) || (localTicketQuality < local.TimeStamp() - 500) {
+            	// new is better
+				acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
+				rejectsMap[local.Publisher()] = append(rejectsMap[local.Publisher()], local)
+			} else {
+				// old is better
+				rejectsMap[nt.Publisher()] = append(rejectsMap[nt.Publisher()], nt)
+			}
+            /*
             if local.TimeStamp() > nt.TimeStamp() { // new ticket is better
                 if local.TimeStamp() - time.Now().UnixNano() < 100 {
                     rejectsMap[nt.Publisher()] = append(rejectsMap[nt.Publisher()], nt) //but old is about to receive
@@ -883,6 +909,7 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
 						cid.String(), nt.Publisher().String(), nt.SendTo().String(), nt.TimeStamp())
                 }
             }
+             */
 //            if local.TimeStamp() <= nt.TimeStamp() || local.TimeStamp() - time.Now().UnixNano() < 100 {
 //            	log.Debugf("[TKTREJECT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
 //            		cid.String(), nt.Publisher(), nt.SendTo(), nt.TimeStamp())
@@ -896,6 +923,8 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
 //                acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
 //            }
         } else {
+        	// We do not have such ticket.
+        	// Accept it.
 			log.Debugf("[TKTACCEPT] Cid %s, Publisher %s, Receiver %s, TimeStamp %d",
 				cid.String(), nt.Publisher(), nt.SendTo(), nt.TimeStamp())
             acceptsMap[nt.Publisher()] = append(acceptsMap[nt.Publisher()], nt)
@@ -913,7 +942,7 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
 		e.ticketStore.SendTicketAcks(tickets.GetAcceptAcks(p, accepts), p)
         e.ticketStore.StoreReceivedTickets(accepts)
     }
-
+	/*
     // TODO: now I reveive a lot of new tickets, I may missed a lot wantlists
     e.lock.Lock()
     defer e.lock.Unlock()
@@ -937,6 +966,7 @@ func (e *Engine) handleTickets(ctx context.Context, p peer.ID, tks []tickets.Tic
         e.ticketStore.SendTickets(activeTickets, l.Partner)
 		l.lk.Unlock()
     }
+	 */
 }
 
 func (e *Engine) handleTicketAcks(ctx context.Context, l *ledger, acks []tickets.TicketAck) bool {

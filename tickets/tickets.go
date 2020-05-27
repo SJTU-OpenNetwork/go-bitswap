@@ -134,7 +134,8 @@ func NewBasicTicket(ticket *pb.Ticket) (*BasicTicket, error){
 		//publisher: publisherId,
 		sendTo:    sendtoId,
 		contentId: contentId,
-		timeStamp: ticket.GetTimeStamp(),
+		//timeStamp: ticket.GetTimeStamp(),
+		duration: ticket.GetDuration(),
 		blockSize: ticket.GetByteSize(),
 		state:     tmpState,
 	}, nil
