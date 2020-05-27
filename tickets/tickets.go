@@ -56,7 +56,8 @@ type Ticket interface {
 	Publisher() peer.ID		// Needed because the ticket receiver should send ack to ticket sender
 	SendTo() peer.ID
 	Cid() cid.Cid
-	TimeStamp() int64 // Higher level, lower priority
+	Duration() int64 // Higher level, lower priority
+	TimeStamp() int64 // The time when receiving this ticket.
 	//Valid(peer.ID, peer.ID) bool
 	GetSize() int64
 	GetState() int32
@@ -72,6 +73,7 @@ type Ticket interface {
 	SetPublisher(peer.ID)
 	SetTimeStamp(timeStamp int64)
 	SetState(int32)
+	SetDuration(int64)
 
 	Loggable
 	//Loggable() map[string]interface{}
@@ -99,6 +101,7 @@ type BasicTicket struct{
 	sendTo	peer.ID
 	contentId cid.Cid
 	timeStamp int64
+	duration int64
 	blockSize int64
 	state int32
 }
@@ -142,7 +145,7 @@ func CreateBasicTicket(sendTo peer.ID, contentId cid.Cid, blockSize int64) *Basi
 		publisher: peer.ID(""),
 		sendTo:    sendTo,
 		contentId: contentId,
-		timeStamp: 0,
+		timeStamp: makeTimestamp(time.Now()),
 		blockSize: blockSize,
 		state:     STATE_NEW,
 	}
@@ -177,6 +180,18 @@ func (t *BasicTicket) Cid() cid.Cid{
 
 func (t* BasicTicket) TimeStamp() int64{
 	return t.timeStamp
+}
+
+func (a *BasicTicket) SetTimeStamp(timeStamp int64){
+	a.timeStamp = timeStamp
+}
+
+func (t *BasicTicket) Duration() int64 {
+	return t.duration
+}
+
+func (t *BasicTicket) SetDuration(duration int64) {
+	t.duration = duration
 }
 
 //func (t* BasicTicket) Valid(sender peer.ID, receiver peer.ID) bool{
@@ -331,8 +346,4 @@ func GetAcceptAcks(p peer.ID, ts []Ticket) []TicketAck{
 		acks = append(acks, AckFromTicket(p, t, ACK_ACCEPT))
 	}
 	return acks
-}
-
-func (a *BasicTicket) SetTimeStamp(timeStamp int64){
-	a.timeStamp = timeStamp
 }

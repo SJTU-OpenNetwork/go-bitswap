@@ -10,9 +10,9 @@ message Ticket {
   string sendTo       = 1;
   string cid          = 2;
   int64  byteSize     = 3;
-  int64  timeStamp    = 4;
-  State  state        = 5;
-  int64  duration     = 6;
+  //int64  timeStamp    = 4;
+  State  state        = 4;
+  int64  duration     = 5;
   enum State {
     New    = 0;
     ACK    = 1;

@@ -99,7 +99,6 @@ type Entry struct {
 }
 
 func newMessageFromProto(pbm pb.Message) (BitSwapMessage, error) {
-	//TODO: add ticket support - Jerry
 	m := newMsg(pbm.Wantlist.Full)
 	for _, e := range pbm.Wantlist.Entries {
 		c, err := cid.Cast([]byte(e.Block))
