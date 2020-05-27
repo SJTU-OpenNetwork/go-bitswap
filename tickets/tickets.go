@@ -142,7 +142,7 @@ func CreateBasicTicket(sendTo peer.ID, contentId cid.Cid, blockSize int64) *Basi
 		publisher: peer.ID(""),
 		sendTo:    sendTo,
 		contentId: contentId,
-		timeStamp: makeTimestamp(time.Now()),
+		timeStamp: 0,
 		blockSize: blockSize,
 		state:     STATE_NEW,
 	}

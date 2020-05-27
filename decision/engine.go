@@ -799,7 +799,10 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
 			//e.requestRecorder.BlockAdd(len(activeEntries), msgSize)
 		}
 	}
-
+	duration := e.getTimeDuration()
+	for i, t := range(activeTickets){
+		t.SetTimeStamp(duration + int64(i) *100)
+	}
 	// Find the tickets we have received about the wanted block
 	// TODO: This is an Error!!!!! We should not directly forward the received tickets !!!! - Riften
 	//		For now, we directly add the remaining time on timestamp of received tickets
@@ -824,10 +827,7 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
             }
 		}
 	}
-    duration := e.getTimeDuration()
-    for i, t := range(activeTickets){
-		t.SetTimeStamp(duration + int64(i) *100)
-	}
+
 	e.ticketStore.SendTickets(activeTickets, p)
     return newWorkExists
 }
