@@ -102,9 +102,11 @@ const (
 	defaultRequestSizeCapacity = 128 * 512 * 1024
 	defaultBlockSize = 512
 
-    sendTicketThreshold = -1 // always send the ticket first? 
+    sendTicketThreshold = 10
+    //sendTicketThreshold = -1 // always send the ticket first? 
+    //sendTicketThreshold = 2147483647 // do not send the ticket
     numOfTicketsThreshold = 4
-    sendTicketThresholdSize = 64 * 1024 // if block is smaller than 16k, send it directly
+    sendTicketThresholdSize = 16 * 1024 // if block is smaller than 16k, send it directly
 
 )
 
@@ -787,7 +789,7 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
 	}
     //e.unstoreWantlist(p, cancels)
 	if len(activeEntries) > 0 {
-		if totalSize < sendTicketThresholdSize || (e.peerRequestQueue.TaskLength()+int(*e.wct) > sendTicketThreshold && !isOldIpfs){
+		if totalSize >  sendTicketThresholdSize && (e.peerRequestQueue.TaskLength()+int(*e.wct) > sendTicketThreshold && !isOldIpfs){
 			log.Debug("Solve wantlist: peerRequestQueue is full. Create tickets.")
 			tmptickets := createTicketsFromEntry(p, activeEntries, blockSizes)
 			activeTickets = append(activeTickets, tmptickets...)
@@ -811,6 +813,8 @@ func (e *Engine) handleNewWantlist(wantKs []cid.Cid, entries []bsmsg.Entry, l *l
 			    // The tmpticket's timestamp will be set to current time by CreateBasicTicket
 				log.Debugf("not have block but have tickets for %s", c)
 			    tmpticket := tickets.CreateBasicTicket(p, t.Cid(), t.GetSize())
+                
+                // ????, it will be reset later!!!
 			    if t.TimeStamp() > tmpticket.TimeStamp() {
 				    tmpticket.SetTimeStamp(t.TimeStamp())
 			    }
@@ -1015,7 +1019,7 @@ func (e *Engine) addBlocks(ctx context.Context, ks []cid.Cid) {
 				if !ok {
 					blockSize = defaultBlockSize
 				}
-				if(blockSize > sendTicketThresholdSize && e.peerRequestQueue.TaskLength()+int(*e.wct) > sendTicketThreshold && isOldIpfs){	//We do not have enough network resources. Send tickets instead of send the block
+				if(blockSize > sendTicketThresholdSize && e.peerRequestQueue.TaskLength()+int(*e.wct) > sendTicketThreshold && !isOldIpfs){	//We do not have enough network resources. Send tickets instead of send the block
 					//Create ticket
 					tmpticket := tickets.CreateBasicTicket(l.Partner, entry.Cid, int64(blockSize))
 					//tmptickets := createTicketsFromEntry(l.Partner, entry.Cid, blockSizes)
