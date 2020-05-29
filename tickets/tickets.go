@@ -233,7 +233,7 @@ func (t *BasicTicket) ToProto() *pb.Ticket{
 		SendTo:    receiver,
 		Cid:       cid,
 		ByteSize:  t.blockSize,
-		TimeStamp: t.timeStamp,
+		Duration:  t.duration,
 		State:     pb.Ticket_State(t.state),
 	}
 	return re
