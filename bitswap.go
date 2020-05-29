@@ -34,6 +34,7 @@ import (
 	process "github.com/jbenet/goprocess"
 	procctx "github.com/jbenet/goprocess/context"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	honrecord "github.com/SJTU-OpenNetwork/hon-textile/recorder"
 )
 
 var log = logging.Logger("hon.bitswap")
@@ -311,6 +312,10 @@ func (bs *Bitswap) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []b
 		for _, b := range blks {
 			if bs.sm.IsWanted(b.Cid()) {
 				log.Debugf("[BLKRECV] Cid %s, From %s", b.Cid(), from.String())
+				err := honrecord.AddBitswapRecord(honrecord.Event_Bitswap_BlkRecv, b.Cid().String(), map[string]string{"from": from.Pretty()})
+				if err != nil {
+					log.Error(err)
+				}
 				wanted = append(wanted, b)
 			} else {
 				log.Debugf("[recv] block not in wantlist; cid=%s, peer=%s", b.Cid(), from)
