@@ -166,7 +166,14 @@ func (bs *Bitswap) sendBlocks(ctx context.Context, env *engine.Envelope) {
 	bs.sentHistogram.Observe(float64(msgSize))
 	err := bs.network.SendMessage(ctx, env.Peer, msg)
 	if err != nil {
-		log.Infof("sendblock error: %s", err)
+		//log.Infof("sendblock error: %s", err)
+		log.Error(err)
+	}
+	for _, block := range env.Message.Blocks() {
+		msgSize += len(block.RawData())
+		msg.AddBlock(block)
+		//log.Infof("Sending block %s to %s", block, env.Peer)
+		log.Debugf("[BLKSENDED] Cid %s, SendTo %s", block.Cid().String(), env.Peer)
 	}
 }
 
