@@ -102,7 +102,7 @@ const (
 	defaultRequestSizeCapacity = 128 * 512 * 1024
 	defaultBlockSize = 512
 
-    sendTicketThreshold = 10
+    sendTicketThreshold = 3
     //sendTicketThreshold = -1 // always send the ticket first? 
     //sendTicketThreshold = 2147483647 // do not send the ticket
     numOfTicketsThreshold = 4
